@@ -61,8 +61,6 @@ public final class FreecamModule implements ToggleableModule {
         camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(), net.minecraft.world.item.ItemStack.EMPTY);
         camera.setYRot(player.getYRot());
         camera.setXRot(player.getXRot());
-        camera.setYRotO(player.getYRot());
-        camera.setXRotO(player.getXRot());
 
         client.setCameraEntity(camera);
         recenterCursor(client);
@@ -76,7 +74,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void updateLook(Minecraft client) {
-        long window = client.getWindow().getHandle();
+        long window = client.getWindow().getWindow();
         double[] x = new double[1];
         double[] y = new double[1];
         org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
@@ -121,7 +119,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void recenterCursor(Minecraft client) {
-        long window = client.getWindow().getHandle();
+        long window = client.getWindow().getWindow();
         double centerX = client.getWindow().getWidth() / 2.0D;
         double centerY = client.getWindow().getHeight() / 2.0D;
         cursorX = centerX;
