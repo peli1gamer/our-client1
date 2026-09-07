@@ -21,13 +21,19 @@ public final class ClientModuleManager {
 
     public void registerDefaults() {
         if (defaultsRegistered) return;
-        defaultsRegistered = true;
 
-        register(new AimAssistModule());
-        register(new TracersModule());
-        register(new FreecamModule());
-        register(new AutoSchematicBuilderModule());
-        register(new SavedBasesModule());
+        try {
+            register(new AimAssistModule());
+            register(new TracersModule());
+            register(new FreecamModule());
+            register(new AutoSchematicBuilderModule());
+            register(new SavedBasesModule());
+            defaultsRegistered = true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("Could not register all default client modules", exception);
+            modules.clear();
+            throw exception;
+        }
     }
 
     public void tick(Minecraft client) {
