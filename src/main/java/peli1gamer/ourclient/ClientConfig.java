@@ -20,6 +20,8 @@ public final class ClientConfig {
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
     public String aimTargetPart = "HEAD";
+    public float freecamSpeed = 0.55f;
+    public float freecamSprintMultiplier = 3.0f;
     public int schematicPlacementsPerTick = 1;
 
     public static ClientConfig load(Path path) {
@@ -55,10 +57,14 @@ public final class ClientConfig {
     private void sanitize() {
         if (!Float.isFinite(aimSmoothing)) aimSmoothing = 0.18f;
         if (!Float.isFinite(aimRange)) aimRange = 12.0f;
+        if (!Float.isFinite(freecamSpeed)) freecamSpeed = 0.55f;
+        if (!Float.isFinite(freecamSprintMultiplier)) freecamSprintMultiplier = 3.0f;
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
+        freecamSpeed = Math.max(0.05f, Math.min(5.0f, freecamSpeed));
+        freecamSprintMultiplier = Math.max(1.0f, Math.min(10.0f, freecamSprintMultiplier));
         if (aimTargetPart == null) aimTargetPart = "HEAD";
-        try { AimTargetPart.valueOf(aimTargetPart.toUpperCase(java.util.Locale.ROOT)); }
+        try { aimTargetPart = AimTargetPart.valueOf(aimTargetPart.toUpperCase(java.util.Locale.ROOT)).name(); }
         catch (IllegalArgumentException exception) { aimTargetPart = "HEAD"; }
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
     }
