@@ -12,15 +12,32 @@ import net.minecraft.world.phys.Vec3;
 
 public final class TracersModule implements ToggleableModule {
     private static final double MAX_RANGE = 64.0D;
+    private static boolean renderHookInstalled;
+    private static TracersModule activeInstance;
     private boolean enabled;
 
     public TracersModule() {
-        WorldRenderEvents.AFTER_ENTITIES.register(this::render);
+        installRenderHook();
     }
 
     @Override public String id() { return "tracers"; }
     @Override public boolean enabled() { return enabled; }
-    @Override public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    @Override
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (enabled) activeInstance = this;
+        else if (activeInstance == this) activeInstance = null;
+    }
+
+    private static void installRenderHook() {
+        if (renderHookInstalled) return;
+        renderHookInstalled = true;
+        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+            TracersModule instance = activeInstance;
+            if (instance != null) instance.render(context);
+        });
+    }
 
     private void render(WorldRenderContext context) {
         if (!enabled) return;
@@ -62,6 +79,7 @@ public final class TracersModule implements ToggleableModule {
             }
         } catch (RuntimeException exception) {
             enabled = false;
+            if (activeInstance == this) activeInstance = null;
             OurClient.LOGGER.error("Disabling tracers after a render failure", exception);
             ClientConfig config = OurClient.config();
             if (config != null) {
