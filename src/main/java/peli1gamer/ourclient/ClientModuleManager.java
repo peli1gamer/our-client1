@@ -12,13 +12,11 @@ public final class ClientModuleManager {
     private boolean defaultsRegistered;
 
     public void register(ClientModule module) {
-        if (module == null || module.id() == null || module.id().isBlank()) {
-            throw new IllegalArgumentException("Module and module id must be non-null");
-        }
-        if (modules.containsKey(module.id())) {
-            throw new IllegalArgumentException("Duplicate module id: " + module.id());
-        }
-        modules.put(module.id(), module);
+        if (module == null) throw new IllegalArgumentException("Module must be non-null");
+        String id = module.id();
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("Module id must be non-null and non-blank");
+        if (modules.containsKey(id)) throw new IllegalArgumentException("Duplicate module id: " + id);
+        modules.put(id, module);
     }
 
     public void registerDefaults() {
@@ -33,13 +31,17 @@ public final class ClientModuleManager {
     }
 
     public void tick(Minecraft client) {
+        if (client == null) return;
         for (ClientModule module : List.copyOf(modules.values())) {
             try {
                 module.onClientTick(client);
             } catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", module.id(), exception);
-                if (module instanceof ToggleableModule toggleable) {
-                    toggleable.setEnabled(false);
+                try {
+                    if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(false);
+                    OurClient.syncAndSaveConfigFromModules();
+                } catch (RuntimeException disableException) {
+                    OurClient.LOGGER.error("Could not safely disable failed client module '{}'", module.id(), disableException);
                 }
             }
         }
