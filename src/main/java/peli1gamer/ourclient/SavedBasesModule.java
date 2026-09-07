@@ -15,6 +15,8 @@ import java.util.Map;
 public final class SavedBasesModule implements ToggleableModule {
     private static final int MAX_BASES = 500;
     private static final int MAX_NAME_LENGTH = 64;
+    private static final int MAX_DIMENSION_LENGTH = 256;
+    private static final long MAX_FILE_BYTES = 1024L * 1024L;
 
     private final Map<String, SavedBase> bases = new LinkedHashMap<>();
     private boolean enabled = true;
@@ -55,6 +57,10 @@ public final class SavedBasesModule implements ToggleableModule {
 
         BlockPos pos = client.player.blockPosition();
         String dimension = client.level.dimension().identifier().toString();
+        if (dimension.length() > MAX_DIMENSION_LENGTH) {
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Dimension identifier is too long."), true);
+            return;
+        }
         bases.put(normalizedName, new SavedBase(dimension, pos.getX(), pos.getY(), pos.getZ()));
         save(client);
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Saved base: " + normalizedName), true);
@@ -96,6 +102,9 @@ public final class SavedBasesModule implements ToggleableModule {
         Path path = path(client);
         try {
             if (!Files.exists(path)) return;
+            if (Files.size(path) > MAX_FILE_BYTES) {
+                throw new IOException("Saved bases file is too large");
+            }
             Map<String, SavedBase> loadedBases = gson.fromJson(
                     Files.readString(path),
                     new com.google.gson.reflect.TypeToken<Map<String, SavedBase>>() {}.getType());
@@ -105,7 +114,8 @@ public final class SavedBasesModule implements ToggleableModule {
                 String name = entry.getKey();
                 SavedBase base = entry.getValue();
                 if (name == null || name.isBlank() || name.length() > MAX_NAME_LENGTH || base == null
-                        || base.dimension() == null || base.dimension().isBlank()) continue;
+                        || base.dimension() == null || base.dimension().isBlank()
+                        || base.dimension().length() > MAX_DIMENSION_LENGTH) continue;
                 if (bases.size() >= MAX_BASES) break;
                 bases.put(name, base);
             }
