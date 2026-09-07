@@ -68,10 +68,12 @@ public final class SavedBasesModule implements ToggleableModule {
 
     private void save(Minecraft client) {
         Path path = path(client);
-        Path temp = path.resolveSibling(path.getFileName() + ".tmp");
+        Path temp = null;
         try {
             Path parent = path.getParent();
             if (parent != null) Files.createDirectories(parent);
+            Path tempDirectory = parent != null ? parent : Path.of(".");
+            temp = Files.createTempFile(tempDirectory, path.getFileName().toString(), ".tmp");
             Files.writeString(temp, gson.toJson(bases));
             try {
                 Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -80,10 +82,12 @@ public final class SavedBasesModule implements ToggleableModule {
             }
         } catch (IOException exception) {
             OurClient.LOGGER.warn("Could not save saved bases to {}", path, exception);
-            try {
-                Files.deleteIfExists(temp);
-            } catch (IOException cleanupException) {
-                OurClient.LOGGER.debug("Could not clean up temporary bases file {}", temp, cleanupException);
+            if (temp != null) {
+                try {
+                    Files.deleteIfExists(temp);
+                } catch (IOException cleanupException) {
+                    OurClient.LOGGER.debug("Could not clean up temporary bases file {}", temp, cleanupException);
+                }
             }
         }
     }
