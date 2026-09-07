@@ -14,7 +14,7 @@ public final class ClientConfig {
     public boolean tracers;
     public boolean freecam;
     public boolean schematicBuilder;
-    public boolean savedBases;
+    public boolean savedBases = true;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
 
@@ -22,7 +22,10 @@ public final class ClientConfig {
         try {
             if (Files.exists(path)) {
                 ClientConfig value = GSON.fromJson(Files.readString(path), ClientConfig.class);
-                return value == null ? new ClientConfig() : value;
+                if (value != null) {
+                    value.sanitize();
+                    return value;
+                }
             }
         } catch (IOException | RuntimeException ignored) {
         }
@@ -30,10 +33,19 @@ public final class ClientConfig {
     }
 
     public void save(Path path) {
+        sanitize();
         try {
-            Files.createDirectories(path.getParent());
+            Path parent = path.getParent();
+            if (parent != null) Files.createDirectories(parent);
             Files.writeString(path, GSON.toJson(this));
         } catch (IOException ignored) {
         }
+    }
+
+    private void sanitize() {
+        if (!Float.isFinite(aimSmoothing)) aimSmoothing = 0.18f;
+        if (!Float.isFinite(aimRange)) aimRange = 12.0f;
+        aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
+        aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
     }
 }
