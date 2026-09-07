@@ -155,6 +155,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private boolean hasReachableSupport(Minecraft client, BlockPos target) {
         double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
+        Vec3 eye = client.player.getEyePosition();
         for (Direction supportDirection : Direction.values()) {
             BlockPos support = target.relative(supportDirection);
             if (!client.level.isInWorldBounds(support)) continue;
@@ -164,7 +165,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                     face.getStepX() * 0.49,
                     face.getStepY() * 0.49,
                     face.getStepZ() * 0.49);
-            if (client.player.distanceToSqr(hit) <= maxRangeSquared) return true;
+            if (eye.distanceToSqr(hit) <= maxRangeSquared) return true;
         }
         return false;
     }
@@ -215,6 +216,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         client.player.getInventory().setSelectedSlot(slot);
 
         double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
+        Vec3 eye = client.player.getEyePosition();
         for (Direction supportDirection : Direction.values()) {
             BlockPos support = target.relative(supportDirection);
             if (!client.level.isInWorldBounds(support)) continue;
@@ -224,7 +226,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                     face.getStepX() * 0.49,
                     face.getStepY() * 0.49,
                     face.getStepZ() * 0.49);
-            if (client.player.distanceToSqr(hit) > maxRangeSquared) continue;
+            if (eye.distanceToSqr(hit) > maxRangeSquared) continue;
             BlockHitResult result = new BlockHitResult(hit, face, support, false);
             InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, result);
             if (action.consumesAction()) {
