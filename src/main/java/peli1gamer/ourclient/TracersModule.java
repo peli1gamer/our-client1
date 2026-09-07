@@ -82,10 +82,7 @@ public final class TracersModule implements ToggleableModule {
             if (activeInstance == this) activeInstance = null;
             OurClient.LOGGER.error("Disabling tracers after a render failure", exception);
             ClientConfig config = OurClient.config();
-            if (config != null) {
-                config.tracers = false;
-                config.save(OurClient.configPath(client));
-            }
+            if (config != null) config.tracers = false;
         }
     }
 }
