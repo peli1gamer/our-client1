@@ -27,7 +27,6 @@ public final class OurClient implements ClientModInitializer {
             LOGGER.warn("Our Client initialization was requested more than once; ignoring the duplicate call");
             return;
         }
-        initialized = true;
 
         Minecraft client = Minecraft.getInstance();
         config = ClientConfig.load(configPath(client));
@@ -44,6 +43,7 @@ public final class OurClient implements ClientModInitializer {
             handleKeybinds(tickClient);
             MODULES.tick(tickClient);
         });
+        initialized = true;
         LOGGER.info("Our Client initialized with {} modules", MODULES.size());
     }
 
