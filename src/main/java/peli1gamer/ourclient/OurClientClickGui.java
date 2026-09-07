@@ -14,12 +14,12 @@ import java.util.Locale;
 
 /** Simple keyboard/mouse friendly module browser with category navigation. */
 public final class OurClientClickGui extends Screen {
-    private static final int ACCENT = 0xFF9B7BFF;
+    private static final int ACCENT = 0xFFFF6A00;
     private static final int BG = 0xE8101118;
     private static final int PANEL = 0xE51A1B25;
     private static final int ROW = 0xA0252632;
-    private static final int SELECTED = 0xFF5E3DB8;
-    private static final int HOVER = 0xA0343044;
+    private static final int SELECTED = 0xFFB83A00;
+    private static final int HOVER = 0xA0443024;
     private static final int TEXT = 0xFFECE8F5;
     private static final int MUTED = 0xFFAAA5B7;
 
@@ -31,7 +31,7 @@ public final class OurClientClickGui extends Screen {
     private String settingsId;
     private String editingSetting;
 
-    public OurClientClickGui() { super(Component.literal("Our Client")); }
+    public OurClientClickGui() { super(Component.literal("Arson Client")); }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
@@ -39,7 +39,7 @@ public final class OurClientClickGui extends Screen {
         int left = 18, top = 18, sidebar = Math.min(150, Math.max(120, width / 4));
         g.fill(left, top, left + sidebar, height - 18, PANEL);
         g.fill(left, top, left + 4, height - 18, ACCENT);
-        g.drawString(font, "OUR CLIENT", left + 16, top + 16, TEXT, false);
+        g.drawString(font, "ARSON CLIENT", left + 16, top + 16, TEXT, false);
         g.drawString(font, "Modules", left + 16, top + 32, MUTED, false);
         for (int i = 0; i < categoryNames.length; i++) {
             int y = top + 54 + i * 34;
