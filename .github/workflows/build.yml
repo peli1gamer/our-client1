@@ -3,6 +3,7 @@ name: Build Our Client
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,7 +28,18 @@ jobs:
           gradle-version: '9.2.1'
 
       - name: Build
-        run: gradle build --no-daemon
+        run: gradle build --no-daemon --stacktrace
+
+      - name: Verify JAR
+        shell: bash
+        run: |
+          shopt -s nullglob
+          jars=(build/libs/*.jar)
+          if [ ${#jars[@]} -eq 0 ]; then
+            echo "No JAR was produced in build/libs"
+            exit 1
+          fi
+          printf 'Built JAR: %s\n' "${jars[@]}"
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
@@ -35,3 +47,4 @@ jobs:
           name: our-client1-${{ github.sha }}
           path: build/libs/*.jar
           if-no-files-found: error
+          retention-days: 30
