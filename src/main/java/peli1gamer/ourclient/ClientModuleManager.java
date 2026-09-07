@@ -25,10 +25,14 @@ public final class ClientModuleManager {
         try {
             // Combat
             register(new AimAssistModule());
+            register(new TriggerBotModule());
+            register(new CrystalMacroModule());
+            register(new AttributeSwapModule());
 
             // Visual
             register(new TracersModule());
             register(new ESPModule());
+            register(new XrayModule());
 
             // Movement
             register(new FreecamModule());
