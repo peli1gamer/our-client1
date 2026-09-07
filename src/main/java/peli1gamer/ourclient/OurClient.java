@@ -29,7 +29,7 @@ public final class OurClient implements ClientModInitializer {
         MODULES.registerDefaults();
         applyConfig();
 
-        registerKey("toggle_aim", GLFW.GLFW_KEY_R);
+        registerKey("toggle_aim", GLFW.GLFW_KEY_R);\n        registerKey("toggle_trigger_bot", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_tracers", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_freecam", GLFW.GLFW_KEY_F6);
         registerKey("toggle_schematic", GLFW.GLFW_KEY_F7);
@@ -54,7 +54,7 @@ public final class OurClient implements ClientModInitializer {
     private static void handleKeybinds(Minecraft client) {
         if (client.screen != null) { discardPendingKeybinds(); return; }
         while (KEYBINDS.get("open_clickgui").consumeClick()) client.setScreen(new OurClientClickGui());
-        while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
+        while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");\n        while (KEYBINDS.get("toggle_trigger_bot").consumeClick()) toggle("trigger-bot");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
         while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam");
         while (KEYBINDS.get("toggle_schematic").consumeClick()) toggle("auto-schematic-builder");
@@ -86,7 +86,7 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void applyConfig() {
-        setEnabled("aim-assist", config.aimAssist);
+        setEnabled("aim-assist", config.aimAssist);\n        setEnabled("trigger-bot", config.triggerBot);
         setEnabled("tracers", config.tracers);
         setEnabled("freecam", false);
         setEnabled("auto-schematic-builder", config.schematicBuilder);
@@ -106,7 +106,7 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void syncConfigFromModules() {
-        config.aimAssist = enabled("aim-assist");
+        config.aimAssist = enabled("aim-assist");\n        config.triggerBot = enabled("trigger-bot");
         config.tracers = enabled("tracers");
         config.freecam = enabled("freecam");
         config.schematicBuilder = enabled("auto-schematic-builder");
