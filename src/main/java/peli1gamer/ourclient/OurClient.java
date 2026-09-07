@@ -5,8 +5,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +41,7 @@ public final class OurClient implements ClientModInitializer {
         KeyMapping mapping = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.ourclient1." + id,
                 key,
-                "key.categories.ourclient1"));
+                KeyMapping.Category.MISC));
         KEYBINDS.put(id, mapping);
     }
 
