@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -15,9 +16,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lightweight ore-finder overlay. It highlights valuable ore blocks around the player. */
+/** Lightweight ore overlay. Scans a bounded area and renders through Fabric's world consumers. */
 public final class XrayModule implements ToggleableModule {
-    private static final int RADIUS = 24;
+    private static final int RADIUS = 20;
+    private static final int SCAN_INTERVAL_TICKS = 20;
     private static boolean hookInstalled;
     private static XrayModule active;
     private boolean enabled;
@@ -44,17 +46,32 @@ public final class XrayModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive()) return;
-        if (--scanTimer > 0) return;
-        scanTimer = 10;
-        matches.clear();
-        BlockPos origin = mc.player.blockPosition();
-        for (int x = -RADIUS; x <= RADIUS; x++) {
-            for (int y = -RADIUS; y <= RADIUS; y++) {
-                for (int z = -RADIUS; z <= RADIUS; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    if (isOre(mc.level.getBlockState(pos).getBlock())) matches.add(pos.immutable());
+        if (scanTimer > 0) {
+            scanTimer--;
+            return;
+        }
+        scanTimer = SCAN_INTERVAL_TICKS;
+
+        try {
+            matches.clear();
+            BlockPos origin = mc.player.blockPosition();
+            int minY = Math.max(mc.level.getMinY(), origin.getY() - RADIUS);
+            int maxY = Math.min(mc.level.getMaxY(), origin.getY() + RADIUS);
+            for (int x = -RADIUS; x <= RADIUS; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = -RADIUS; z <= RADIUS; z++) {
+                        BlockPos pos = origin.offset(x, y - origin.getY(), z);
+                        if (isOre(mc.level.getBlockState(pos).getBlock())) matches.add(pos.immutable());
+                    }
                 }
             }
+        } catch (RuntimeException exception) {
+            matches.clear();
+            enabled = false;
+            if (active == this) active = null;
+            OurClient.LOGGER.error("Disabling Xray after a scan failure", exception);
+            ClientConfig config = OurClient.config();
+            if (config != null) config.xray = false;
         }
     }
 
@@ -80,23 +97,31 @@ public final class XrayModule implements ToggleableModule {
     }
 
     private void render(WorldRenderContext context) {
-        if (!enabled || matches.isEmpty() || context.commandQueue() == null) return;
+        if (!enabled || matches.isEmpty() || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (mc.player == null || mc.getCameraEntity() == null) return;
+
         try {
-            Vec3 camera = mc.getCameraEntity() != null ? mc.getCameraEntity().getPosition(1.0F) : mc.player.getPosition(1.0F);
-            List<Box> boxes = new ArrayList<>(matches.size());
+            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
+            List<Box> boxes = new ArrayList<>(Math.min(matches.size(), 2048));
             for (BlockPos pos : matches) {
                 if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
-                AABB box = new AABB(pos).move(-camera.x, -camera.y, -camera.z).inflate(.02);
-                boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ, (float) box.maxX, (float) box.maxY, (float) box.maxZ));
+                AABB box = new AABB(pos).move(-camera.x, -camera.y, -camera.z).inflate(.01);
+                boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
+                        (float) box.maxX, (float) box.maxY, (float) box.maxZ));
+                if (boxes.size() >= 2048) break;
             }
             if (boxes.isEmpty()) return;
-            context.commandQueue().submitCustomGeometry(context.matrices(), RenderTypes.lines(), (pose, consumer) -> emitBoxes(pose, consumer, boxes));
+
+            MultiBufferSource consumers = context.consumers();
+            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+            emitBoxes(context.matrices().last(), buffer, boxes);
         } catch (RuntimeException exception) {
             enabled = false;
             if (active == this) active = null;
             OurClient.LOGGER.error("Disabling Xray after a render failure", exception);
+            ClientConfig config = OurClient.config();
+            if (config != null) config.xray = false;
         }
     }
 
