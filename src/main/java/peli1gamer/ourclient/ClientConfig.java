@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /** Small JSON-backed client configuration. */
 public final class ClientConfig {
@@ -29,18 +30,31 @@ public final class ClientConfig {
                     return value;
                 }
             }
-        } catch (IOException | RuntimeException ignored) {
+        } catch (IOException | RuntimeException exception) {
+            OurClient.LOGGER.warn("Could not load client config from {}", path, exception);
         }
         return new ClientConfig();
     }
 
     public void save(Path path) {
         sanitize();
+        Path temp = path.resolveSibling(path.getFileName() + ".tmp");
         try {
             Path parent = path.getParent();
             if (parent != null) Files.createDirectories(parent);
-            Files.writeString(path, GSON.toJson(this));
-        } catch (IOException ignored) {
+            Files.writeString(temp, GSON.toJson(this));
+            try {
+                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException exception) {
+            OurClient.LOGGER.warn("Could not save client config to {}", path, exception);
+            try {
+                Files.deleteIfExists(temp);
+            } catch (IOException cleanupException) {
+                OurClient.LOGGER.debug("Could not clean up temporary config file {}", temp, cleanupException);
+            }
         }
     }
 
