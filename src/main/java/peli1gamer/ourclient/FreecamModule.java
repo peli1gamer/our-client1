@@ -31,7 +31,21 @@ public final class FreecamModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.level == null || client.screen != null) return;
+        // A saved freecam preference can only be activated after a world/player exists.
+        if (!enabled && OurClient.config() != null && OurClient.config().freecam
+                && client.player != null && client.level != null && client.screen == null) {
+            setEnabled(true);
+        }
+
+        if (!enabled) return;
+        if (client.player == null || client.level == null) {
+            // Do not leave a stale camera entity active across world transitions.
+            enabled = false;
+            camera = null;
+            return;
+        }
+        if (client.screen != null) return;
+
         if (camera == null) {
             enter(client);
             if (!enabled) return;
@@ -64,6 +78,8 @@ public final class FreecamModule implements ToggleableModule {
 
     private void updateLook(Minecraft client) {
         long window = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
+        if (window == 0L) return;
+
         double[] x = new double[1];
         double[] y = new double[1];
         org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
@@ -109,6 +125,8 @@ public final class FreecamModule implements ToggleableModule {
 
     private void recenterCursor(Minecraft client) {
         long window = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
+        if (window == 0L) return;
+
         double centerX = client.getWindow().getWidth() / 2.0D;
         double centerY = client.getWindow().getHeight() / 2.0D;
         cursorX = centerX;
