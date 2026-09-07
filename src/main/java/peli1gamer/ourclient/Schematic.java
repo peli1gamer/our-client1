@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
@@ -30,9 +31,9 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             int z = block.get("z").getAsInt();
             String id = block.get("block").getAsString();
             Identifier key = Identifier.parse(id);
-            Block registered = BuiltInRegistries.BLOCK.get(key);
-            if (registered == null) throw new IllegalArgumentException("Unknown block: " + id);
-            BlockState state = registered.defaultBlockState();
+            Holder.Reference<Block> registered = BuiltInRegistries.BLOCK.get(key)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown block: " + id));
+            BlockState state = registered.value().defaultBlockState();
             entries.add(new BlockEntry(x, y, z, state));
         }
         return new Schematic(name, List.copyOf(entries));
