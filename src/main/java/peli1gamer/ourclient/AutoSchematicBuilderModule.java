@@ -27,6 +27,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final int MAX_PLACEMENT_RANGE = 6;
     private static final int MAX_ATTEMPTS_PER_TICK = 20;
     private static final int NO_PROGRESS_NOTICE_TICKS = 40;
+    private static final int RETRY_DELAY_TICKS = 2;
 
     private boolean enabled;
     private Schematic schematic;
@@ -35,6 +36,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private BitSet completed;
     private boolean loaded;
     private int noProgressTicks;
+    private int retryCooldown;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -64,6 +66,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (completed == null || completed.length() > schematic.blocks().size()) {
             completed = new BitSet(schematic.blocks().size());
         }
+        if (retryCooldown > 0) retryCooldown--;
 
         ClientConfig config = OurClient.config();
         int attemptsThisTick = config == null ? 1 : Math.min(MAX_ATTEMPTS_PER_TICK,
@@ -88,13 +91,16 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 continue;
             }
 
+            if (retryCooldown > 0) break;
             if (place(client, target, wanted)) {
-                // Only mark the entry complete after the client world confirms the block.
+                retryCooldown = RETRY_DELAY_TICKS;
+                // Client-side prediction may update immediately, but a remote server can acknowledge later.
                 if (client.level.getBlockState(target).is(wanted.getBlock())) {
                     completed.set(index);
-                    madeProgress = true;
                     cursor = (index + 1) % schematic.blocks().size();
+                    madeProgress = true;
                 }
+                break;
             }
             attempts++;
         }
@@ -158,7 +164,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
         if (client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
-        int slot = findBlockSlot(wanted.getBlock());
+        int slot = findBlockSlot(client.player, wanted.getBlock());
         if (slot < 0) return false;
         client.player.getInventory().setSelectedSlot(slot);
 
@@ -184,10 +190,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         return false;
     }
 
-    private int findBlockSlot(Block block) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return -1;
-        for (int slot = 0; slot < 9; slot++) {
+    private int findBlockSlot(LocalPlayer player, Block block) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
             if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == block) return slot;
         }
@@ -210,5 +214,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         loaded = false;
         schematic = null;
         noProgressTicks = 0;
+        retryCooldown = 0;
     }
 }
