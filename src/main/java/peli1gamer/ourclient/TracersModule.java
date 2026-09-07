@@ -33,30 +33,41 @@ public final class TracersModule implements ToggleableModule {
 
         Entity cameraEntity = client.getCameraEntity();
         if (cameraEntity == null) return;
-        Vec3 cameraPos = cameraEntity.getEyePosition(1.0F);
-        VertexConsumer lines = context.consumers().getBuffer(RenderTypes.lines());
 
-        matrices.pushPose();
         try {
+            Vec3 cameraPos = cameraEntity.getEyePosition(1.0F);
+            VertexConsumer lines = context.consumers().getBuffer(RenderTypes.lines());
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
-            for (Player target : client.level.players()) {
-                if (target == client.player || !target.isAlive()) continue;
-                if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
 
-                double x = target.getX() - cameraPos.x;
-                double y = target.getEyeY() - cameraPos.y;
-                double z = target.getZ() - cameraPos.z;
+            matrices.pushPose();
+            try {
+                for (Player target : client.level.players()) {
+                    if (target == client.player || !target.isAlive()) continue;
+                    if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
 
-                PoseStack.Pose pose = matrices.last();
-                lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
-                        .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                        .setNormal(pose, 0.0f, 1.0f, 0.0f);
-                lines.addVertex(pose, (float) x, (float) y, (float) z)
-                        .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                        .setNormal(pose, 0.0f, 1.0f, 0.0f);
+                    double x = target.getX() - cameraPos.x;
+                    double y = target.getEyeY() - cameraPos.y;
+                    double z = target.getZ() - cameraPos.z;
+
+                    PoseStack.Pose pose = matrices.last();
+                    lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
+                            .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                            .setNormal(pose, 0.0f, 1.0f, 0.0f);
+                    lines.addVertex(pose, (float) x, (float) y, (float) z)
+                            .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                            .setNormal(pose, 0.0f, 1.0f, 0.0f);
+                }
+            } finally {
+                matrices.popPose();
             }
-        } finally {
-            matrices.popPose();
+        } catch (RuntimeException exception) {
+            enabled = false;
+            OurClient.LOGGER.error("Disabling tracers after a render failure", exception);
+            ClientConfig config = OurClient.config();
+            if (config != null) {
+                config.tracers = false;
+                config.save(OurClient.configPath(client));
+            }
         }
     }
 }
