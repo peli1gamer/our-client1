@@ -23,10 +23,6 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
-            register(new AimAssistModule());
-            register(new TriggerBotModule());
-            register(new CrystalMacroModule());
-            register(new AttributeSwapModule());
             register(new TracersModule());
             register(new ESPModule());
             register(new FreecamModule());
