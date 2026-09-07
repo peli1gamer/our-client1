@@ -17,6 +17,8 @@ public final class ClientConfig {
     public boolean savedBases = true;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
+    /** Maximum schematic placement attempts per client tick. Kept low by default for weak devices. */
+    public int schematicPlacementsPerTick = 1;
 
     public static ClientConfig load(Path path) {
         try {
@@ -47,5 +49,6 @@ public final class ClientConfig {
         if (!Float.isFinite(aimRange)) aimRange = 12.0f;
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
+        schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
     }
 }
