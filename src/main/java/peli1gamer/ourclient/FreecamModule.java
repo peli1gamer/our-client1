@@ -5,7 +5,6 @@ import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
-import org.joml.Vector3d;
 
 /** Client-only free camera. The real player remains at the original server position. */
 public final class FreecamModule implements ToggleableModule {
@@ -67,6 +66,7 @@ public final class FreecamModule implements ToggleableModule {
         }
         updateLook(client);
         updateMovement(client);
+        syncCameraTransform();
     }
 
     private void enter(Minecraft client) {
@@ -79,8 +79,12 @@ public final class FreecamModule implements ToggleableModule {
         freezePlayerInput(player);
         camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(),
                 net.minecraft.world.item.ItemStack.EMPTY);
+        camera.setNoGravity(true);
+        camera.setInvulnerable(true);
+        camera.setInvisible(true);
         camera.setYRot(player.getYRot());
         camera.setXRot(player.getXRot());
+        syncCameraTransform();
         client.setCameraEntity(camera);
         recenterCursor(client);
     }
@@ -166,6 +170,16 @@ public final class FreecamModule implements ToggleableModule {
         double mx = strafe * cos - forward * sin;
         double mz = strafe * sin + forward * cos;
         camera.setPos(camera.getX() + mx * speed, camera.getY() + vertical * speed, camera.getZ() + mz * speed);
+    }
+
+    /** Keep render interpolation state locked to the camera's actual transform. */
+    private void syncCameraTransform() {
+        if (camera == null) return;
+        camera.xo = camera.getX();
+        camera.yo = camera.getY();
+        camera.zo = camera.getZ();
+        camera.xRotO = camera.getXRot();
+        camera.yRotO = camera.getYRot();
     }
 
     private void recenterCursor(Minecraft client) {
