@@ -63,7 +63,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void updateLook(Minecraft client) {
-        long window = client.getWindow().getWindow();
+        long window = client.getWindow().getHandle();
         double[] x = new double[1];
         double[] y = new double[1];
         org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
@@ -108,7 +108,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void recenterCursor(Minecraft client) {
-        long window = client.getWindow().getWindow();
+        long window = client.getWindow().getHandle();
         double centerX = client.getWindow().getWidth() / 2.0D;
         double centerY = client.getWindow().getHeight() / 2.0D;
         cursorX = centerX;
