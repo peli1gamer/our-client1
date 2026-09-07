@@ -38,6 +38,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private boolean loaded;
     private int noProgressTicks;
     private int retryCooldown;
+    private int previousSelectedSlot = -1;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -45,13 +46,21 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     @Override
     public void setEnabled(boolean enabled) {
+        if (this.enabled == enabled) return;
         this.enabled = enabled;
-        if (!enabled) resetProgress();
+        if (enabled) {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player != null) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
+        } else {
+            restoreSelectedSlot();
+            resetProgress();
+        }
     }
 
     @Override
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null) return;
+        if (!client.player.isAlive()) return;
         if (!loaded) loadSchematic(client);
         if (schematic == null) return;
 
@@ -190,13 +199,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private void abortBuild(Minecraft client, String message) {
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(message), true);
-        enabled = false;
+        setEnabled(false);
         ClientConfig config = OurClient.config();
         if (config != null) {
             config.schematicBuilder = false;
             config.save(OurClient.configPath(client));
         }
-        resetProgress();
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
@@ -232,6 +240,14 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == block) return slot;
         }
         return -1;
+    }
+
+    private void restoreSelectedSlot() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null && previousSelectedSlot >= 0 && previousSelectedSlot < 9) {
+            client.player.getInventory().setSelectedSlot(previousSelectedSlot);
+        }
+        previousSelectedSlot = -1;
     }
 
     private void sortBlocks() {
