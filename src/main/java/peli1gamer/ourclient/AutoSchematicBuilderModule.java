@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 
@@ -31,6 +32,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private Schematic schematic;
     private BlockPos origin;
     private int cursor;
+    private BitSet completed;
     private boolean loaded;
     private int noProgressTicks;
     private String requestedFile = "build.json";
@@ -53,9 +55,14 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (origin == null) {
             origin = client.player.blockPosition();
             cursor = 0;
+            completed = new BitSet(schematic.blocks().size());
             sortBlocks();
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic loaded: " + schematic.name() + " (" + schematic.blocks().size() + " blocks)"), true);
+        }
+
+        if (completed == null || completed.length() > schematic.blocks().size()) {
+            completed = new BitSet(schematic.blocks().size());
         }
 
         ClientConfig config = OurClient.config();
@@ -64,30 +71,35 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         int attempts = 0;
         boolean madeProgress = false;
 
-        while (cursor < schematic.blocks().size() && attempts < attemptsThisTick) {
+        while (completed.cardinality() < schematic.blocks().size() && attempts < attemptsThisTick) {
             int index = findNextWorkItem(client);
             if (index < 0) break;
             cursor = index;
 
-            Schematic.BlockEntry entry = schematic.blocks().get(cursor);
+            Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
 
             if (current.is(wanted.getBlock())) {
-                cursor++;
+                completed.set(index);
+                cursor = (index + 1) % schematic.blocks().size();
                 madeProgress = true;
                 continue;
             }
 
             if (place(client, target, wanted)) {
-                cursor++;
-                madeProgress = true;
+                // Only mark the entry complete after the client world confirms the block.
+                if (client.level.getBlockState(target).is(wanted.getBlock())) {
+                    completed.set(index);
+                    madeProgress = true;
+                    cursor = (index + 1) % schematic.blocks().size();
+                }
             }
             attempts++;
         }
 
-        if (cursor >= schematic.blocks().size()) {
+        if (completed.cardinality() >= schematic.blocks().size()) {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic complete: " + schematic.name()), true);
             enabled = false;
@@ -108,10 +120,11 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private int findNextWorkItem(Minecraft client) {
-        if (schematic == null || origin == null) return -1;
+        if (schematic == null || origin == null || completed == null || schematic.blocks().isEmpty()) return -1;
         int size = schematic.blocks().size();
         for (int offset = 0; offset < size; offset++) {
             int index = (cursor + offset) % size;
+            if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) {
@@ -193,6 +206,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private void resetProgress() {
         origin = null;
         cursor = 0;
+        completed = null;
         loaded = false;
         schematic = null;
         noProgressTicks = 0;
