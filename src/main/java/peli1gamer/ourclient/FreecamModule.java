@@ -31,7 +31,6 @@ public final class FreecamModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        // A saved freecam preference can only be activated after a world/player exists.
         if (!enabled && OurClient.config() != null && OurClient.config().freecam
                 && client.player != null && client.level != null && client.screen == null) {
             setEnabled(true);
@@ -39,7 +38,7 @@ public final class FreecamModule implements ToggleableModule {
 
         if (!enabled) return;
         if (client.player == null || client.level == null) {
-            // Do not leave a stale camera entity active across world transitions.
+            if (client.player != null) client.setCameraEntity(client.player);
             enabled = false;
             camera = null;
             return;
@@ -88,7 +87,8 @@ public final class FreecamModule implements ToggleableModule {
         double dy = y[0] - cursorY;
         if (dx != 0.0D || dy != 0.0D) {
             camera.setYRot(camera.getYRot() + (float) (dx * MOUSE_SENSITIVITY));
-            camera.setXRot(clampPitch(camera.getXRot() + (float) (dy * MOUSE_SENSITIVITY)));
+            // Minecraft's normal mouse look pitches upward when the cursor moves upward.
+            camera.setXRot(clampPitch(camera.getXRot() - (float) (dy * MOUSE_SENSITIVITY)));
         }
         recenterCursor(client);
     }
