@@ -98,16 +98,15 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
             if (retryCooldown > 0) break;
             if (place(client, target, wanted)) {
-                retryCooldown = RETRY_DELAY_TICKS;
                 attempts++;
                 // Client-side prediction may update immediately, but a remote server can acknowledge later.
                 if (client.level.getBlockState(target).is(wanted.getBlock())) {
                     completed.set(index);
                     cursor = (index + 1) % schematic.blocks().size();
                     madeProgress = true;
-                    // Keep processing only when the client confirmed this placement; otherwise wait for the server.
                     continue;
                 }
+                retryCooldown = RETRY_DELAY_TICKS;
                 break;
             }
             attempts++;
