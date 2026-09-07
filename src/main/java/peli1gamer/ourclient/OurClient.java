@@ -58,8 +58,6 @@ public final class OurClient implements ClientModInitializer {
 
     private static void handleKeybinds(Minecraft client) {
         if (client.screen != null) {
-            // Discard clicks captured while menus/chat own keyboard input so they do not
-            // become delayed module toggles when the screen closes.
             discardPendingKeybinds();
             return;
         }
@@ -71,7 +69,7 @@ public final class OurClient implements ClientModInitializer {
         while (KEYBINDS.get("save_base").consumeClick()) {
             ClientModule module = MODULES.get("saved-bases");
             if (module instanceof SavedBasesModule bases) {
-                bases.saveCurrentBase(client, "base-" + System.currentTimeMillis());
+                bases.saveCurrentBase(client, bases.nextAutomaticName());
             }
         }
     }
@@ -93,8 +91,6 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void applyConfig() {
-        // Modules that require a live player (notably freecam) must be applied again
-        // once the client has actually entered a world.
         setEnabled("aim-assist", config.aimAssist);
         setEnabled("tracers", config.tracers);
         setEnabled("freecam", false);
