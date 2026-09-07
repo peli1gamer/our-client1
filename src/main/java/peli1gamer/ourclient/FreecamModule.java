@@ -1,6 +1,7 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -15,6 +16,8 @@ public final class FreecamModule implements ToggleableModule {
     private boolean enabled;
     private ItemEntity camera;
     private Entity previousCamera;
+    private ClientInput previousInput;
+    private LocalPlayer inputOwner;
     private double cursorX;
     private double cursorY;
 
@@ -44,6 +47,8 @@ public final class FreecamModule implements ToggleableModule {
             enabled = false;
             camera = null;
             previousCamera = null;
+            previousInput = null;
+            inputOwner = null;
             return;
         }
         if (client.screen != null) return;
@@ -65,6 +70,12 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         previousCamera = client.getCameraEntity();
+        if (inputOwner != player) {
+            previousInput = player.input;
+            player.input = new ClientInput();
+            inputOwner = player;
+        }
+
         camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(),
                 net.minecraft.world.item.ItemStack.EMPTY);
         camera.setYRot(player.getYRot());
@@ -75,9 +86,19 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void exit(Minecraft client) {
+        restoreInput(client);
         restoreCamera(client);
         camera = null;
         previousCamera = null;
+    }
+
+    private void restoreInput(Minecraft client) {
+        if (inputOwner == null || previousInput == null) return;
+        if (client.player == inputOwner) {
+            inputOwner.input = previousInput;
+        }
+        previousInput = null;
+        inputOwner = null;
     }
 
     private void restoreCamera(Minecraft client) {
