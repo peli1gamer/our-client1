@@ -23,7 +23,7 @@ public final class SavedBasesModule implements ToggleableModule {
     public void saveCurrentBase(Minecraft client, String name) {
         if (client.player == null || client.level == null) return;
         BlockPos pos = client.player.blockPosition();
-        String dimension = client.level.dimension().location().toString();
+        String dimension = client.level.dimension().identifier().toString();
         bases.put(name, new SavedBase(dimension, pos.getX(), pos.getY(), pos.getZ()));
         save(client);
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Saved base: " + name), true);
