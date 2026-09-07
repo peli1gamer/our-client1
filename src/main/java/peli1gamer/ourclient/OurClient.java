@@ -19,9 +19,16 @@ public final class OurClient implements ClientModInitializer {
     private static final ClientModuleManager MODULES = new ClientModuleManager();
     private static final Map<String, KeyMapping> KEYBINDS = new LinkedHashMap<>();
     private static ClientConfig config;
+    private static boolean initialized;
 
     @Override
     public void onInitializeClient() {
+        if (initialized) {
+            LOGGER.warn("Our Client initialization was requested more than once; ignoring the duplicate call");
+            return;
+        }
+        initialized = true;
+
         Minecraft client = Minecraft.getInstance();
         config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
