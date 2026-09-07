@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/** Small JSON-backed client configuration. */
 public final class ClientConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final long MAX_CONFIG_BYTES = 1024L * 1024L;
@@ -17,22 +16,17 @@ public final class ClientConfig {
     public boolean freecam;
     public boolean schematicBuilder;
     public boolean savedBases = true;
+    public boolean scaffold;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
-    /** Maximum schematic placement attempts per client tick. Kept low by default for weak devices. */
     public int schematicPlacementsPerTick = 1;
 
     public static ClientConfig load(Path path) {
         try {
             if (Files.exists(path)) {
-                if (Files.size(path) > MAX_CONFIG_BYTES) {
-                    throw new IOException("Configuration file is too large");
-                }
+                if (Files.size(path) > MAX_CONFIG_BYTES) throw new IOException("Configuration file is too large");
                 ClientConfig value = GSON.fromJson(Files.readString(path), ClientConfig.class);
-                if (value != null) {
-                    value.sanitize();
-                    return value;
-                }
+                if (value != null) { value.sanitize(); return value; }
             }
         } catch (IOException | RuntimeException exception) {
             OurClient.LOGGER.warn("Could not load client config from {}", path, exception);
@@ -49,20 +43,11 @@ public final class ClientConfig {
             Path tempDirectory = parent != null ? parent : Path.of(".");
             temp = Files.createTempFile(tempDirectory, path.getFileName().toString(), ".tmp");
             Files.writeString(temp, GSON.toJson(this));
-            try {
-                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
-                Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING);
-            }
+            try { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
+            catch (java.nio.file.AtomicMoveNotSupportedException ignored) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
         } catch (IOException exception) {
             OurClient.LOGGER.warn("Could not save client config to {}", path, exception);
-            if (temp != null) {
-                try {
-                    Files.deleteIfExists(temp);
-                } catch (IOException cleanupException) {
-                    OurClient.LOGGER.debug("Could not clean up temporary config file {}", temp, cleanupException);
-                }
-            }
+            if (temp != null) try { Files.deleteIfExists(temp); } catch (IOException ignored) { }
         }
     }
 
