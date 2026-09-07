@@ -11,6 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 public final class TracersModule implements ToggleableModule {
+    private static final double MAX_RANGE = 64.0D;
     private boolean enabled;
 
     public TracersModule() {
@@ -36,22 +37,26 @@ public final class TracersModule implements ToggleableModule {
         VertexConsumer lines = context.consumers().getBuffer(RenderTypes.lines());
 
         matrices.pushPose();
-        for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof Player target) || target == client.player || !target.isAlive()) continue;
-            if (client.player.distanceToSqr(target) > 64.0 * 64.0) continue;
+        try {
+            double maxRangeSquared = MAX_RANGE * MAX_RANGE;
+            for (Player target : client.level.players()) {
+                if (target == client.player || !target.isAlive()) continue;
+                if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
 
-            double x = target.getX() - cameraPos.x;
-            double y = target.getEyeY() - cameraPos.y;
-            double z = target.getZ() - cameraPos.z;
+                double x = target.getX() - cameraPos.x;
+                double y = target.getEyeY() - cameraPos.y;
+                double z = target.getZ() - cameraPos.z;
 
-            PoseStack.Pose pose = matrices.last();
-            lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
-                    .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                    .setNormal(pose, 0.0f, 1.0f, 0.0f);
-            lines.addVertex(pose, (float) x, (float) y, (float) z)
-                    .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                    .setNormal(pose, 0.0f, 1.0f, 0.0f);
+                PoseStack.Pose pose = matrices.last();
+                lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
+                        .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                        .setNormal(pose, 0.0f, 1.0f, 0.0f);
+                lines.addVertex(pose, (float) x, (float) y, (float) z)
+                        .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                        .setNormal(pose, 0.0f, 1.0f, 0.0f);
+            }
+        } finally {
+            matrices.popPose();
         }
-        matrices.popPose();
     }
 }
