@@ -48,7 +48,6 @@ public final class AimAssistModule implements ToggleableModule {
         player.setYRot(newYaw);
         player.setXRot(newPitch);
         player.setYHeadRot(newYaw);
-        player.setYBodyRot(approachAngle(player.getYBodyRot(), newYaw, smoothing));
     }
 
     private LivingEntity findTarget(Minecraft client, LocalPlayer player, double range) {
