@@ -4,5 +4,6 @@
   "key.ourclient1.toggle_tracers": "Toggle Tracers",
   "key.ourclient1.toggle_freecam": "Toggle Freecam",
   "key.ourclient1.toggle_schematic": "Toggle Auto Schematic Builder",
-  "key.ourclient1.save_base": "Save Current Base"
+  "key.ourclient1.save_base": "Save Current Base",
+  "key.ourclient1.open_clickgui": "Open Our Client GUI"
 }
