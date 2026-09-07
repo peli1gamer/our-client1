@@ -22,17 +22,20 @@ public final class OurClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        config = ClientConfig.load(Minecraft.getInstance().gameDirectory.toPath().resolve("config/our-client1.json"));
+        Minecraft client = Minecraft.getInstance();
+        config = ClientConfig.load(client.gameDirectory.toPath().resolve("config/our-client1.json"));
         MODULES.registerDefaults();
+        applyConfig();
+
         registerKey("toggle_aim", GLFW.GLFW_KEY_R);
         registerKey("toggle_tracers", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_freecam", GLFW.GLFW_KEY_F6);
         registerKey("toggle_schematic", GLFW.GLFW_KEY_F7);
         registerKey("save_base", GLFW.GLFW_KEY_V);
 
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            handleKeybinds(client);
-            MODULES.tick(client);
+        ClientTickEvents.END_CLIENT_TICK.register(tickClient -> {
+            handleKeybinds(tickClient);
+            MODULES.tick(tickClient);
         });
         LOGGER.info("Our Client initialized with {} modules", MODULES.size());
     }
@@ -52,13 +55,45 @@ public final class OurClient implements ClientModInitializer {
         while (KEYBINDS.get("toggle_schematic").consumeClick()) toggle("auto-schematic-builder");
         while (KEYBINDS.get("save_base").consumeClick()) {
             ClientModule module = MODULES.get("saved-bases");
-            if (module instanceof SavedBasesModule bases) bases.saveCurrentBase(client, "base-" + System.currentTimeMillis());
+            if (module instanceof SavedBasesModule bases) {
+                bases.saveCurrentBase(client, "base-" + System.currentTimeMillis());
+            }
         }
     }
 
     private static void toggle(String id) {
         ClientModule module = MODULES.get(id);
-        if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(!toggleable.enabled());
+        if (module instanceof ToggleableModule toggleable) {
+            toggleable.setEnabled(!toggleable.enabled());
+            syncConfigFromModules();
+            config.save(configPath(Minecraft.getInstance()));
+        }
+    }
+
+    private static void applyConfig() {
+        setEnabled("aim-assist", config.aimAssist);
+        setEnabled("tracers", config.tracers);
+        setEnabled("freecam", config.freecam);
+        setEnabled("auto-schematic-builder", config.schematicBuilder);
+        setEnabled("saved-bases", config.savedBases);
+    }
+
+    private static void setEnabled(String id, boolean enabled) {
+        ClientModule module = MODULES.get(id);
+        if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(enabled);
+    }
+
+    private static void syncConfigFromModules() {
+        config.aimAssist = enabled("aim-assist");
+        config.tracers = enabled("tracers");
+        config.freecam = enabled("freecam");
+        config.schematicBuilder = enabled("auto-schematic-builder");
+        config.savedBases = enabled("saved-bases");
+    }
+
+    private static boolean enabled(String id) {
+        ClientModule module = MODULES.get(id);
+        return module instanceof ToggleableModule toggleable && toggleable.enabled();
     }
 
     public static ClientModuleManager modules() { return MODULES; }
