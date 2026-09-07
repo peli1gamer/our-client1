@@ -34,8 +34,21 @@ public final class FreecamModule implements ToggleableModule {
         this.enabled = enabled;
 
         Minecraft client = Minecraft.getInstance();
-        if (enabled) enter(client);
-        else exit(client);
+        if (enabled) {
+            try {
+                enter(client);
+            } catch (RuntimeException exception) {
+                enabled = false;
+                restoreInput(client);
+                restoreCamera(client);
+                camera = null;
+                previousCamera = null;
+                OurClient.LOGGER.error("Could not enable freecam; state was rolled back", exception);
+                syncDisabledConfig();
+            }
+        } else {
+            exit(client);
+        }
     }
 
     @Override
@@ -47,12 +60,7 @@ public final class FreecamModule implements ToggleableModule {
 
         if (!enabled) return;
         if (client.player == null || client.level == null) {
-            restoreCamera(client);
-            enabled = false;
-            camera = null;
-            previousCamera = null;
-            previousInput = null;
-            inputOwner = null;
+            cleanupAfterWorldLoss(client);
             return;
         }
         if (client.screen != null) return;
@@ -91,6 +99,29 @@ public final class FreecamModule implements ToggleableModule {
         restoreCamera(client);
         camera = null;
         previousCamera = null;
+    }
+
+    private void cleanupAfterWorldLoss(Minecraft client) {
+        restoreInput(client);
+        restoreCamera(client);
+        enabled = false;
+        camera = null;
+        previousCamera = null;
+        previousInput = null;
+        inputOwner = null;
+        syncDisabledConfig();
+    }
+
+    private void syncDisabledConfig() {
+        ClientConfig config = OurClient.config();
+        if (config != null) {
+            config.freecam = false;
+            try {
+                config.save(OurClient.configPath(Minecraft.getInstance()));
+            } catch (RuntimeException exception) {
+                OurClient.LOGGER.warn("Could not persist freecam shutdown state", exception);
+            }
+        }
     }
 
     private void freezePlayerInput(LocalPlayer player) {
