@@ -49,8 +49,12 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void handleKeybinds(Minecraft client) {
-        // Module keybinds should not fire while a GUI/chat screen owns keyboard input.
-        if (client.screen != null) return;
+        if (client.screen != null) {
+            // Discard clicks captured while menus/chat own keyboard input so they do not
+            // become delayed module toggles when the screen closes.
+            discardPendingKeybinds();
+            return;
+        }
 
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
@@ -60,6 +64,14 @@ public final class OurClient implements ClientModInitializer {
             ClientModule module = MODULES.get("saved-bases");
             if (module instanceof SavedBasesModule bases) {
                 bases.saveCurrentBase(client, "base-" + System.currentTimeMillis());
+            }
+        }
+    }
+
+    private static void discardPendingKeybinds() {
+        for (KeyMapping mapping : KEYBINDS.values()) {
+            while (mapping.consumeClick()) {
+                // Intentionally discard queued presses while a screen is active.
             }
         }
     }
