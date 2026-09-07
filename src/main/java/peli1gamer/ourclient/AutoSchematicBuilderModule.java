@@ -61,6 +61,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null) return;
         if (!client.player.isAlive()) return;
+        if (previousSelectedSlot < 0) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
         if (!loaded) loadSchematic(client);
         if (schematic == null) return;
 
