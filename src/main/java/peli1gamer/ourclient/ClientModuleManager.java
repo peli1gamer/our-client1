@@ -21,7 +21,7 @@ public final class ClientModuleManager {
 
     public void registerDefaults() {
         if (defaultsRegistered) return;
-
+        Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
             register(new AimAssistModule());
             register(new TracersModule());
@@ -30,24 +30,27 @@ public final class ClientModuleManager {
             register(new SavedBasesModule());
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
-            OurClient.LOGGER.error("Could not register all default client modules", exception);
             modules.clear();
+            modules.putAll(previous);
+            OurClient.LOGGER.error("Could not register all default client modules", exception);
             throw exception;
         }
     }
 
     public void tick(Minecraft client) {
         if (client == null) return;
-        for (ClientModule module : List.copyOf(modules.values())) {
+        for (Map.Entry<String, ClientModule> entry : List.copyOf(modules.entrySet())) {
+            String id = entry.getKey();
+            ClientModule module = entry.getValue();
             try {
                 module.onClientTick(client);
             } catch (RuntimeException exception) {
-                OurClient.LOGGER.error("Client module '{}' failed during tick", module.id(), exception);
+                OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
                 try {
                     if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(false);
                     OurClient.syncAndSaveConfigFromModules();
                 } catch (RuntimeException disableException) {
-                    OurClient.LOGGER.error("Could not safely disable failed client module '{}'", module.id(), disableException);
+                    OurClient.LOGGER.error("Could not safely disable failed client module '{}'", id, disableException);
                 }
             }
         }
