@@ -53,6 +53,7 @@ public final class FreecamModule implements ToggleableModule {
         }
         if (client.screen != null) return;
 
+        freezePlayerInput(client.player);
         if (camera == null) {
             enter(client);
             if (!enabled) return;
@@ -70,11 +71,7 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         previousCamera = client.getCameraEntity();
-        if (inputOwner != player) {
-            previousInput = player.input;
-            player.input = new ClientInput();
-            inputOwner = player;
-        }
+        freezePlayerInput(player);
 
         camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(),
                 net.minecraft.world.item.ItemStack.EMPTY);
@@ -90,6 +87,17 @@ public final class FreecamModule implements ToggleableModule {
         restoreCamera(client);
         camera = null;
         previousCamera = null;
+    }
+
+    private void freezePlayerInput(LocalPlayer player) {
+        if (inputOwner == player) return;
+        if (inputOwner != null && previousInput != null) {
+            // The old player entity is no longer current; its input object can be discarded.
+            previousInput = null;
+        }
+        previousInput = player.input;
+        player.input = new ClientInput();
+        inputOwner = player;
     }
 
     private void restoreInput(Minecraft client) {
