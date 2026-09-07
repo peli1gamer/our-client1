@@ -21,19 +21,18 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Client-side schematic placer. Schematics live in config/our-client1/schematics/*.json.
- * Placement work is deliberately capped per tick so large builds do not monopolize the client thread.
- */
+/** Client-side JSON schematic placer. */
 public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final int MAX_PLACEMENT_RANGE = 6;
     private static final int MAX_ATTEMPTS_PER_TICK = 20;
+    private static final int NO_PROGRESS_NOTICE_TICKS = 40;
 
     private boolean enabled;
     private Schematic schematic;
     private BlockPos origin;
     private int cursor;
     private boolean loaded;
+    private int noProgressTicks;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -63,20 +62,28 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         int attemptsThisTick = config == null ? 1 : Math.min(MAX_ATTEMPTS_PER_TICK,
                 Math.max(1, config.schematicPlacementsPerTick));
         int attempts = 0;
+        boolean madeProgress = false;
 
         while (cursor < schematic.blocks().size() && attempts < attemptsThisTick) {
+            int index = findNextWorkItem(client);
+            if (index < 0) break;
+            cursor = index;
+
             Schematic.BlockEntry entry = schematic.blocks().get(cursor);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
 
-            // This format currently stores block types, not serialized block-state properties.
             if (current.is(wanted.getBlock())) {
                 cursor++;
+                madeProgress = true;
                 continue;
             }
 
-            if (place(client, target, wanted)) cursor++;
+            if (place(client, target, wanted)) {
+                cursor++;
+                madeProgress = true;
+            }
             attempts++;
         }
 
@@ -88,19 +95,45 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 config.schematicBuilder = false;
                 config.save(OurClient.configPath(client));
             }
+            return;
         }
+
+        if (madeProgress) {
+            noProgressTicks = 0;
+        } else if (++noProgressTicks >= NO_PROGRESS_NOTICE_TICKS) {
+            noProgressTicks = 0;
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "Schematic paused: move closer or obtain the required block."), true);
+        }
+    }
+
+    private int findNextWorkItem(Minecraft client) {
+        if (schematic == null || origin == null) return -1;
+        int size = schematic.blocks().size();
+        for (int offset = 0; offset < size; offset++) {
+            int index = (cursor + offset) % size;
+            Schematic.BlockEntry entry = schematic.blocks().get(index);
+            BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
+            if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private void loadSchematic(Minecraft client) {
         loaded = true;
         Path directory = client.gameDirectory.toPath().resolve("config/our-client1/schematics");
-        Path file = directory.resolve(requestedFile);
+        Path file = directory.resolve(requestedFile).normalize();
+        if (!file.getParent().equals(directory)) {
+            schematic = null;
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Invalid schematic path."), true);
+            return;
+        }
         try {
             Files.createDirectories(directory);
             if (!Files.exists(file)) {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n");
-                schematic = Schematic.parse(Files.readString(file), requestedFile);
-                return;
             }
             schematic = Schematic.parse(Files.readString(file), requestedFile);
         } catch (IOException | JsonParseException | IllegalArgumentException exception) {
@@ -112,22 +145,17 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
         if (client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
-
         int slot = findBlockSlot(wanted.getBlock());
         if (slot < 0) return false;
         client.player.getInventory().setSelectedSlot(slot);
 
-        // Each direction describes where the supporting block is relative to the target.
-        // The interaction face is therefore the opposite face on that support block.
         Direction[] supportDirections = {
                 Direction.DOWN, Direction.NORTH, Direction.SOUTH,
                 Direction.WEST, Direction.EAST, Direction.UP
         };
         for (Direction supportDirection : supportDirections) {
             BlockPos support = target.relative(supportDirection);
-            BlockState supportState = client.level.getBlockState(support);
-            if (!supportState.isSolidRender()) continue;
-
+            if (!client.level.getBlockState(support).isSolidRender()) continue;
             Direction face = supportDirection.getOpposite();
             Vec3 hit = Vec3.atCenterOf(support).add(
                     face.getStepX() * 0.49,
@@ -167,5 +195,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         cursor = 0;
         loaded = false;
         schematic = null;
+        noProgressTicks = 0;
     }
 }
