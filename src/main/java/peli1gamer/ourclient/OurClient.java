@@ -48,6 +48,7 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void registerKey(String id, int key) {
+        if (KEYBINDS.containsKey(id)) return;
         KeyMapping mapping = new KeyMapping(
                 "key.ourclient1." + id,
                 key,
