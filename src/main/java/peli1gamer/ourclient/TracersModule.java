@@ -4,7 +4,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.Entity;
@@ -31,8 +30,9 @@ public final class TracersModule implements ToggleableModule {
         PoseStack matrices = context.matrices();
         if (matrices == null || context.consumers() == null) return;
 
-        Camera camera = context.camera();
-        Vec3 cameraPos = camera.position();
+        Entity cameraEntity = client.getCameraEntity();
+        if (cameraEntity == null) return;
+        Vec3 cameraPos = cameraEntity.getEyePosition(1.0F);
         VertexConsumer lines = context.consumers().getBuffer(RenderTypes.lines());
 
         matrices.pushPose();
@@ -44,7 +44,6 @@ public final class TracersModule implements ToggleableModule {
             double y = target.getEyeY() - cameraPos.y;
             double z = target.getZ() - cameraPos.z;
 
-            matrices.pushPose();
             PoseStack.Pose pose = matrices.last();
             lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
                     .setColor(1.0f, 1.0f, 1.0f, 0.9f)
@@ -52,7 +51,6 @@ public final class TracersModule implements ToggleableModule {
             lines.addVertex(pose, (float) x, (float) y, (float) z)
                     .setColor(1.0f, 1.0f, 1.0f, 0.9f)
                     .setNormal(pose, 0.0f, 1.0f, 0.0f);
-            matrices.popPose();
         }
         matrices.popPose();
     }
