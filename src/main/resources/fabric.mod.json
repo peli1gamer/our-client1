@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "our-client1",
+  "version": "${version}",
+  "name": "Our Client",
+  "description": "A client-side Fabric utility client.",
+  "authors": ["peli1gamer"],
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "peli1gamer.ourclient.OurClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "fabric-api": "*",
+    "minecraft": "1.21.11"
+  }
+}
