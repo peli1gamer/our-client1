@@ -83,6 +83,10 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic complete: " + schematic.name()), true);
             enabled = false;
+            if (config != null) {
+                config.schematicBuilder = false;
+                config.save(OurClient.configPath(client));
+            }
         }
     }
 
@@ -94,6 +98,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Files.createDirectories(directory);
             if (!Files.exists(file)) {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n");
+                client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                        "Created schematic template: " + file.getFileName()), true);
                 return;
             }
             schematic = Schematic.parse(Files.readString(file), requestedFile);
