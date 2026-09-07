@@ -1,6 +1,5 @@
 package peli1gamer.ourclient;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -269,6 +268,10 @@ public final class OurClientClickGui extends Screen {
             onClose();
             return true;
         }
+        if (editingSearch && keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+            if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
+            return true;
+        }
 
         if (editingNumber && OurClient.config() != null && (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT)) {
             float direction = keyCode == GLFW.GLFW_KEY_RIGHT ? 1.0f : -1.0f;
@@ -286,11 +289,9 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (editingSearch) {
-            if (!Character.isISOControl(codePoint)) {
-                search += codePoint;
-                return true;
-            }
+        if (editingSearch && !Character.isISOControl(codePoint)) {
+            search += codePoint;
+            return true;
         }
         return super.charTyped(codePoint, modifiers);
     }
