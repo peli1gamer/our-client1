@@ -23,7 +23,7 @@ public final class OurClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Minecraft client = Minecraft.getInstance();
-        config = ClientConfig.load(client.gameDirectory.toPath().resolve("config/our-client1.json"));
+        config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
         applyConfig();
 
@@ -49,6 +49,9 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void handleKeybinds(Minecraft client) {
+        // Module keybinds should not fire while a GUI/chat screen owns keyboard input.
+        if (client.screen != null) return;
+
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
         while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam");
@@ -65,8 +68,7 @@ public final class OurClient implements ClientModInitializer {
         ClientModule module = MODULES.get(id);
         if (module instanceof ToggleableModule toggleable) {
             toggleable.setEnabled(!toggleable.enabled());
-            syncConfigFromModules();
-            config.save(configPath(Minecraft.getInstance()));
+            syncAndSaveConfigFromModules();
         }
     }
 
@@ -83,6 +85,12 @@ public final class OurClient implements ClientModInitializer {
     private static void setEnabled(String id, boolean enabled) {
         ClientModule module = MODULES.get(id);
         if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(enabled);
+    }
+
+    static void syncAndSaveConfigFromModules() {
+        if (config == null) return;
+        syncConfigFromModules();
+        config.save(configPath(Minecraft.getInstance()));
     }
 
     private static void syncConfigFromModules() {
