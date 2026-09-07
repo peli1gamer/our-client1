@@ -28,6 +28,7 @@ public final class ClientModuleManager {
             register(new FreecamModule());
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
+            register(new ScaffoldModule());
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
             modules.clear();
@@ -47,30 +48,16 @@ public final class ClientModuleManager {
             } catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
                 if (module instanceof ToggleableModule toggleable) {
-                    try {
-                        toggleable.setEnabled(false);
-                    } catch (RuntimeException disableException) {
-                        OurClient.LOGGER.error("Could not disable failed client module '{}'", id, disableException);
-                    }
+                    try { toggleable.setEnabled(false); }
+                    catch (RuntimeException disableException) { OurClient.LOGGER.error("Could not disable failed client module '{}'", id, disableException); }
                 }
-                try {
-                    OurClient.syncAndSaveConfigFromModules();
-                } catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException);
-                }
+                try { OurClient.syncAndSaveConfigFromModules(); }
+                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
             }
         }
     }
 
-    public ClientModule get(String id) {
-        return modules.get(id);
-    }
-
-    public Collection<ClientModule> all() {
-        return List.copyOf(modules.values());
-    }
-
-    public int size() {
-        return modules.size();
-    }
+    public ClientModule get(String id) { return modules.get(id); }
+    public Collection<ClientModule> all() { return List.copyOf(modules.values()); }
+    public int size() { return modules.size(); }
 }
