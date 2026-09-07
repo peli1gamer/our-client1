@@ -130,18 +130,31 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int findNextWorkItem(Minecraft client) {
         if (schematic == null || origin == null || completed == null || schematic.blocks().isEmpty()) return -1;
         int size = schematic.blocks().size();
-        double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
         for (int offset = 0; offset < size; offset++) {
             int index = (cursor + offset) % size;
             if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) return index;
-            if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= maxRangeSquared) {
-                return index;
-            }
+            if (hasReachableSupport(client, target)) return index;
         }
         return -1;
+    }
+
+    private boolean hasReachableSupport(Minecraft client, BlockPos target) {
+        double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
+        for (Direction supportDirection : Direction.values()) {
+            BlockPos support = target.relative(supportDirection);
+            if (!client.level.isInWorldBounds(support)) continue;
+            if (!client.level.getBlockState(support).isSolidRender()) continue;
+            Direction face = supportDirection.getOpposite();
+            Vec3 hit = Vec3.atCenterOf(support).add(
+                    face.getStepX() * 0.49,
+                    face.getStepY() * 0.49,
+                    face.getStepZ() * 0.49);
+            if (client.player.distanceToSqr(hit) <= maxRangeSquared) return true;
+        }
+        return false;
     }
 
     private void loadSchematic(Minecraft client) {
@@ -191,11 +204,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         client.player.getInventory().setSelectedSlot(slot);
 
         double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
-        Direction[] supportDirections = {
-                Direction.DOWN, Direction.NORTH, Direction.SOUTH,
-                Direction.WEST, Direction.EAST, Direction.UP
-        };
-        for (Direction supportDirection : supportDirections) {
+        for (Direction supportDirection : Direction.values()) {
             BlockPos support = target.relative(supportDirection);
             if (!client.level.isInWorldBounds(support)) continue;
             if (!client.level.getBlockState(support).isSolidRender()) continue;
