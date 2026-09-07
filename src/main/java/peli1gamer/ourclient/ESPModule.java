@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
@@ -13,16 +14,14 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Stable player-box ESP. Geometry is submitted through Fabric's 1.21.11 world renderer. */
+/** Stable player-box ESP using Fabric's supported world consumer path. */
 public final class ESPModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
     private static boolean renderHookInstalled;
     private static ESPModule activeInstance;
     private boolean enabled;
 
-    public ESPModule() {
-        installRenderHook();
-    }
+    public ESPModule() { installRenderHook(); }
 
     @Override public String id() { return "esp"; }
     @Override public boolean enabled() { return enabled; }
@@ -44,37 +43,35 @@ public final class ESPModule implements ToggleableModule {
     }
 
     private void render(WorldRenderContext context) {
-        if (!enabled) return;
-
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || context.commandQueue() == null) return;
+        if (!enabled || context == null || context.matrices() == null || context.consumers() == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = client.getCameraEntity() != null
-                    ? client.getCameraEntity().getPosition(1.0F)
-                    : client.player.getPosition(1.0F);
+            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
             List<Box> boxes = new ArrayList<>();
 
-            for (Player target : client.level.players()) {
-                if (target == client.player || !target.isAlive()) continue;
-                if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
-
-                AABB box = target.getBoundingBox().move(-camera.x, -camera.y, -camera.z);
+            for (Player target : mc.level.players()) {
+                if (target == mc.player || !target.isAlive()) continue;
+                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
+                AABB worldBox = target.getBoundingBox();
+                AABB box = worldBox.move(-camera.x, -camera.y, -camera.z);
                 boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
                         (float) box.maxX, (float) box.maxY, (float) box.maxZ));
             }
 
             if (boxes.isEmpty()) return;
-
-            context.commandQueue().submitCustomGeometry(
-                    context.matrices(),
-                    RenderTypes.lines(),
-                    (pose, consumer) -> emitBoxes(pose, consumer, boxes));
+            MultiBufferSource consumers = context.consumers();
+            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+            PoseStack.Pose pose = context.matrices().last();
+            emitBoxes(pose, buffer, boxes);
         } catch (RuntimeException exception) {
             enabled = false;
             if (activeInstance == this) activeInstance = null;
-            OurClient.LOGGER.error("Disabling ESP after a render submission failure", exception);
+            OurClient.LOGGER.error("Disabling ESP after a render failure", exception);
+            ClientConfig config = OurClient.config();
+            if (config != null) config.esp = false;
         }
     }
 
