@@ -35,12 +35,10 @@ public final class SavedBasesModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!loaded) {
-            loaded = true;
-            ClientConfig config = OurClient.config();
-            if (config != null) enabled = config.savedBases;
-            load(client);
-        }
+        if (loaded) return;
+        ClientConfig config = OurClient.config();
+        if (config != null) enabled = config.savedBases;
+        if (load(client)) loaded = true;
     }
 
     public void saveCurrentBase(Minecraft client, String name) {
@@ -106,17 +104,17 @@ public final class SavedBasesModule implements ToggleableModule {
         }
     }
 
-    private void load(Minecraft client) {
+    private boolean load(Minecraft client) {
         Path path = path(client);
         try {
-            if (!Files.exists(path)) return;
+            if (!Files.exists(path)) return true;
             if (Files.size(path) > MAX_FILE_BYTES) {
                 throw new IOException("Saved bases file is too large");
             }
             Map<String, SavedBase> loadedBases = gson.fromJson(
                     Files.readString(path),
                     new com.google.gson.reflect.TypeToken<Map<String, SavedBase>>() {}.getType());
-            if (loadedBases == null) return;
+            if (loadedBases == null) return true;
 
             for (Map.Entry<String, SavedBase> entry : loadedBases.entrySet()) {
                 String name = entry.getKey();
@@ -127,8 +125,10 @@ public final class SavedBasesModule implements ToggleableModule {
                 if (bases.size() >= MAX_BASES) break;
                 bases.put(name, base);
             }
+            return true;
         } catch (IOException | RuntimeException exception) {
             OurClient.LOGGER.warn("Could not load saved bases from {}", path, exception);
+            return false;
         }
     }
 
