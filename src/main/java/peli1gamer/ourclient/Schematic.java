@@ -5,7 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -29,7 +29,7 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             int y = block.get("y").getAsInt();
             int z = block.get("z").getAsInt();
             String id = block.get("block").getAsString();
-            ResourceLocation key = ResourceLocation.parse(id);
+            Identifier key = Identifier.parse(id);
             Block registered = BuiltInRegistries.BLOCK.get(key);
             if (registered == null) throw new IllegalArgumentException("Unknown block: " + id);
             BlockState state = registered.defaultBlockState();
