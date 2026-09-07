@@ -2,6 +2,7 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import org.joml.Vector3d;
 
@@ -13,6 +14,7 @@ public final class FreecamModule implements ToggleableModule {
 
     private boolean enabled;
     private ItemEntity camera;
+    private Entity previousCamera;
     private double cursorX;
     private double cursorY;
 
@@ -38,9 +40,10 @@ public final class FreecamModule implements ToggleableModule {
 
         if (!enabled) return;
         if (client.player == null || client.level == null) {
-            if (client.player != null) client.setCameraEntity(client.player);
+            restoreCamera(client);
             enabled = false;
             camera = null;
+            previousCamera = null;
             return;
         }
         if (client.screen != null) return;
@@ -61,6 +64,7 @@ public final class FreecamModule implements ToggleableModule {
             return;
         }
 
+        previousCamera = client.getCameraEntity();
         camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(),
                 net.minecraft.world.item.ItemStack.EMPTY);
         camera.setYRot(player.getYRot());
@@ -71,13 +75,23 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void exit(Minecraft client) {
-        if (client.player != null) client.setCameraEntity(client.player);
+        restoreCamera(client);
         camera = null;
+        previousCamera = null;
+    }
+
+    private void restoreCamera(Minecraft client) {
+        Entity restore = previousCamera;
+        if (restore != null && restore != camera && restore.isAlive() && restore.level() == client.level) {
+            client.setCameraEntity(restore);
+        } else if (client.player != null) {
+            client.setCameraEntity(client.player);
+        }
     }
 
     private void updateLook(Minecraft client) {
-        long window = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
-        if (window == 0L) return;
+        long window = client.getWindow().handle();
+        if (window == 0L || camera == null) return;
 
         double[] x = new double[1];
         double[] y = new double[1];
@@ -87,13 +101,13 @@ public final class FreecamModule implements ToggleableModule {
         double dy = y[0] - cursorY;
         if (dx != 0.0D || dy != 0.0D) {
             camera.setYRot(camera.getYRot() + (float) (dx * MOUSE_SENSITIVITY));
-            // Minecraft's normal mouse look pitches upward when the cursor moves upward.
             camera.setXRot(clampPitch(camera.getXRot() - (float) (dy * MOUSE_SENSITIVITY)));
         }
         recenterCursor(client);
     }
 
     private void updateMovement(Minecraft client) {
+        if (camera == null) return;
         double forward = (client.options.keyUp.isDown() ? 1.0D : 0.0D)
                 - (client.options.keyDown.isDown() ? 1.0D : 0.0D);
         double strafe = (client.options.keyRight.isDown() ? 1.0D : 0.0D)
@@ -124,7 +138,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void recenterCursor(Minecraft client) {
-        long window = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
+        long window = client.getWindow().handle();
         if (window == 0L) return;
 
         double centerX = client.getWindow().getWidth() / 2.0D;
