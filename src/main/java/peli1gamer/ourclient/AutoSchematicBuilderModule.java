@@ -81,6 +81,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
+            if (!client.level.isInWorldBounds(target)) {
+                completed.set(index);
+                cursor = (index + 1) % schematic.blocks().size();
+                madeProgress = true;
+                continue;
+            }
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
 
@@ -133,6 +139,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
+            if (!client.level.isInWorldBounds(target)) continue;
             if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) {
                 return index;
             }
@@ -163,7 +170,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
-        if (client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
+        if (!client.level.isInWorldBounds(target)
+                || client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
         int slot = findBlockSlot(client.player, wanted.getBlock());
         if (slot < 0) return false;
         client.player.getInventory().setSelectedSlot(slot);
@@ -174,6 +182,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         };
         for (Direction supportDirection : supportDirections) {
             BlockPos support = target.relative(supportDirection);
+            if (!client.level.isInWorldBounds(support)) continue;
             if (!client.level.getBlockState(support).isSolidRender()) continue;
             Direction face = supportDirection.getOpposite();
             Vec3 hit = Vec3.atCenterOf(support).add(
@@ -191,7 +200,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private int findBlockSlot(LocalPlayer player, Block block) {
-        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+        for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
             if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == block) return slot;
         }
