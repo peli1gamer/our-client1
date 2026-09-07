@@ -4,11 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.Items;
 
-/** Temporarily selects the most suitable melee item for the entity under the crosshair. */
+/** Temporarily selects the strongest standard sword or axe in the hotbar. */
 public final class AttributeSwapModule implements ToggleableModule {
     private boolean enabled;
     private boolean onlyWhenAttacking = true;
@@ -39,14 +38,29 @@ public final class AttributeSwapModule implements ToggleableModule {
 
     private int findBestWeapon(LocalPlayer player) {
         int best = -1;
-        float bestDamage = -1.0f;
+        int bestScore = -1;
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (!(stack.getItem() instanceof SwordItem) && !(stack.getItem() instanceof AxeItem)) continue;
-            float damage = stack.getItem() instanceof SwordItem ? 4.0f : 5.0f;
-            if (damage > bestDamage) { bestDamage = damage; best = slot; }
+            int score = weaponScore(stack);
+            if (score > bestScore) { bestScore = score; best = score >= 0 ? slot : -1; }
         }
         return best;
+    }
+
+    private int weaponScore(ItemStack stack) {
+        if (stack.is(Items.NETHERITE_AXE)) return 100;
+        if (stack.is(Items.DIAMOND_AXE)) return 90;
+        if (stack.is(Items.IRON_AXE)) return 80;
+        if (stack.is(Items.STONE_AXE)) return 70;
+        if (stack.is(Items.GOLDEN_AXE)) return 60;
+        if (stack.is(Items.WOODEN_AXE)) return 50;
+        if (stack.is(Items.NETHERITE_SWORD)) return 95;
+        if (stack.is(Items.DIAMOND_SWORD)) return 85;
+        if (stack.is(Items.IRON_SWORD)) return 75;
+        if (stack.is(Items.STONE_SWORD)) return 65;
+        if (stack.is(Items.GOLDEN_SWORD)) return 55;
+        if (stack.is(Items.WOODEN_SWORD)) return 45;
+        return -1;
     }
 
     private void restore(LocalPlayer player) {
