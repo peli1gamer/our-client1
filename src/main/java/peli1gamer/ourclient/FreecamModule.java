@@ -64,9 +64,9 @@ public final class FreecamModule implements ToggleableModule {
 
         LocalPlayer player = client.player;
 
-        // Let Minecraft's normal mouse handling calculate the exact same rotation
-        // deltas it would use in ordinary gameplay, then transfer those deltas to
-        // the free camera and put the real player back at its original rotation.
+        // Let Minecraft's normal mouse handling calculate the same rotation deltas
+        // it would use in ordinary gameplay, then transfer those deltas to the
+        // free camera and put the real player back at its original rotation.
         float playerYaw = player.getYRot();
         float playerPitch = player.getXRot();
         float yawDelta = wrapDegrees(playerYaw - lockedPlayerYaw);
@@ -107,8 +107,7 @@ public final class FreecamModule implements ToggleableModule {
         client.setCameraEntity(camera);
 
         // Use Minecraft's normal cursor grabbing rather than manually moving the
-        // GLFW cursor every tick. This removes the jitter/over-rotation caused by
-        // the old recentering implementation.
+        // GLFW cursor every tick. This avoids jitter and over-rotation.
         client.mouseHandler.grabMouse();
     }
 
@@ -182,8 +181,13 @@ public final class FreecamModule implements ToggleableModule {
         double yaw = Math.toRadians(camera.getYRot());
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
+
+        // Minecraft yaw is 0 south and increases toward west. The right/strafe
+        // vector therefore has a negative Z component at positive yaw. The old
+        // formula used +sin here, which made A and D appear mirrored as the camera
+        // turned. Keep forward/backward unchanged and correct only the strafe axis.
         double mx = strafe * cos - forward * sin;
-        double mz = strafe * sin + forward * cos;
+        double mz = -strafe * sin + forward * cos;
         camera.setPos(camera.getX() + mx * speed, camera.getY() + vertical * speed, camera.getZ() + mz * speed);
     }
 
