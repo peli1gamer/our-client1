@@ -125,6 +125,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic complete: " + schematic.name()), true);
             setEnabled(false);
+            OurClient.syncAndSaveConfigFromModules();
             return;
         }
 
