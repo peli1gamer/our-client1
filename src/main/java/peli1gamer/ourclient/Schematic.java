@@ -20,6 +20,8 @@ public record Schematic(String name, List<BlockEntry> blocks) {
     private static final Gson GSON = new Gson();
     private static final int MAX_BLOCKS = 100_000;
     private static final int MAX_COORDINATE = 30_000_000;
+    private static final int MAX_NAME_LENGTH = 128;
+    private static final int MAX_BLOCK_ID_LENGTH = 256;
 
     public static Schematic parse(String json, String fallbackName) {
         if (json == null || json.isBlank()) throw new IllegalArgumentException("Schematic is empty");
@@ -29,9 +31,13 @@ public record Schematic(String name, List<BlockEntry> blocks) {
         String name = fallbackName;
         JsonElement nameElement = root.get("name");
         if (nameElement != null && !nameElement.isJsonNull()) {
+            if (!nameElement.isJsonPrimitive() || !nameElement.getAsJsonPrimitive().isString()) {
+                throw new IllegalArgumentException("Schematic field must be a string: name");
+            }
             name = nameElement.getAsString();
         }
         if (name == null || name.isBlank()) name = "schematic";
+        if (name.length() > MAX_NAME_LENGTH) throw new IllegalArgumentException("Schematic name is too long");
 
         JsonArray array = root.getAsJsonArray("blocks");
         if (array == null) throw new IllegalArgumentException("Schematic has no blocks array");
@@ -55,6 +61,7 @@ public record Schematic(String name, List<BlockEntry> blocks) {
                 throw new IllegalArgumentException("Schematic coordinate is out of bounds");
             }
             String id = requiredString(block, "block");
+            if (id.length() > MAX_BLOCK_ID_LENGTH) throw new IllegalArgumentException("Block id is too long");
             Identifier key = Identifier.parse(id);
             Holder.Reference<Block> registered = BuiltInRegistries.BLOCK.get(key)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown block: " + id));
