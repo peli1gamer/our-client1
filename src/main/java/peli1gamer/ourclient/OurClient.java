@@ -41,11 +41,11 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void registerKey(String id, int key) {
-        KeyMapping mapping = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        KeyMapping mapping = new KeyMapping(
                 "key.ourclient1." + id,
                 key,
-                KeyMapping.Category.MISC));
-        KEYBINDS.put(id, mapping);
+                KeyMapping.Category.MISC);
+        KEYBINDS.put(id, KeyBindingHelper.registerKeyBinding(mapping));
     }
 
     private static void handleKeybinds(Minecraft client) {
@@ -71,9 +71,11 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void applyConfig() {
+        // Modules that require a live player (notably freecam) must be applied again
+        // once the client has actually entered a world.
         setEnabled("aim-assist", config.aimAssist);
         setEnabled("tracers", config.tracers);
-        setEnabled("freecam", config.freecam);
+        setEnabled("freecam", false);
         setEnabled("auto-schematic-builder", config.schematicBuilder);
         setEnabled("saved-bases", config.savedBases);
     }
