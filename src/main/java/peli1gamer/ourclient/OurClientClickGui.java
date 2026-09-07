@@ -115,8 +115,8 @@ public final class OurClientClickGui extends Screen {
         List<ClientModule> result = new ArrayList<>();
         for (ClientModule module : OurClient.modules().all()) {
             int cat = switch (module.id()) {
-                case "aim-assist" -> 0;
-                case "tracers", "esp" -> 1;
+                case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
+                case "tracers", "esp", "xray" -> 1;
                 case "freecam" -> 2;
                 case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
                 default -> 4;
