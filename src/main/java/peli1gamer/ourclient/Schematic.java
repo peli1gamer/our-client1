@@ -40,7 +40,7 @@ public record Schematic(String name, List<BlockEntry> blocks) {
         }
 
         List<BlockEntry> entries = new ArrayList<>(array.size());
-        Set<Long> positions = new HashSet<>(Math.max(16, array.size() * 2));
+        Set<Position> positions = new HashSet<>(Math.max(16, array.size() * 2));
         for (JsonElement element : array) {
             if (element == null || !element.isJsonObject()) {
                 throw new IllegalArgumentException("Each schematic block must be an object");
@@ -56,7 +56,7 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             Identifier key = Identifier.parse(id);
             Holder.Reference<Block> registered = BuiltInRegistries.BLOCK.get(key)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown block: " + id));
-            if (!positions.add(positionKey(x, y, z))) {
+            if (!positions.add(new Position(x, y, z))) {
                 throw new IllegalArgumentException("Duplicate schematic position: " + x + "," + y + "," + z);
             }
             BlockState state = registered.value().defaultBlockState();
@@ -83,11 +83,7 @@ public record Schematic(String name, List<BlockEntry> blocks) {
         return result;
     }
 
-    private static long positionKey(int x, int y, int z) {
-        return ((long) x & 0x1FFFFFL) << 42
-                | ((long) y & 0x1FFFFFL) << 21
-                | ((long) z & 0x1FFFFFL);
-    }
+    private record Position(int x, int y, int z) { }
 
     public record BlockEntry(int x, int y, int z, BlockState state) { }
 }
