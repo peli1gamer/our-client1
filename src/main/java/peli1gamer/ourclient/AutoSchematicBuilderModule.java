@@ -26,6 +26,7 @@ import java.util.List;
 public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final double MAX_PLACEMENT_RANGE = 6.0D;
     private static final int MAX_ATTEMPTS_PER_TICK = 20;
+    private static final int MAX_WORK_ITEMS_SCANNED_PER_TICK = 4096;
     private static final int NO_PROGRESS_NOTICE_TICKS = 40;
     private static final int RETRY_DELAY_TICKS = 2;
     private static final long MAX_SCHEMATIC_FILE_BYTES = 8L * 1024L * 1024L;
@@ -141,7 +142,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int findNextWorkItem(Minecraft client) {
         if (schematic == null || origin == null || completed == null || schematic.blocks().isEmpty()) return -1;
         int size = schematic.blocks().size();
-        for (int offset = 0; offset < size; offset++) {
+        int limit = Math.min(size, MAX_WORK_ITEMS_SCANNED_PER_TICK);
+        for (int offset = 0; offset < limit; offset++) {
             int index = (cursor + offset) % size;
             if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
@@ -151,6 +153,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 return index;
             }
         }
+        cursor = (cursor + limit) % size;
         return -1;
     }
 
