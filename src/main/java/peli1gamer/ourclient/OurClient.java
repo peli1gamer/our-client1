@@ -69,7 +69,11 @@ public final class OurClient implements ClientModInitializer {
         while (KEYBINDS.get("save_base").consumeClick()) {
             ClientModule module = MODULES.get("saved-bases");
             if (module instanceof SavedBasesModule bases) {
-                bases.saveCurrentBase(client, bases.nextAutomaticName());
+                try {
+                    bases.saveCurrentBase(client, bases.nextAutomaticName());
+                } catch (RuntimeException exception) {
+                    LOGGER.error("Failed to save base from keybind", exception);
+                }
             }
         }
     }
@@ -84,9 +88,24 @@ public final class OurClient implements ClientModInitializer {
 
     private static void toggle(String id) {
         ClientModule module = MODULES.get(id);
-        if (module instanceof ToggleableModule toggleable) {
-            toggleable.setEnabled(!toggleable.enabled());
+        if (!(module instanceof ToggleableModule toggleable)) return;
+
+        boolean target = !toggleable.enabled();
+        try {
+            toggleable.setEnabled(target);
             syncAndSaveConfigFromModules();
+        } catch (RuntimeException exception) {
+            LOGGER.error("Failed to toggle client module '{}'", id, exception);
+            try {
+                toggleable.setEnabled(false);
+            } catch (RuntimeException recoveryException) {
+                LOGGER.error("Failed to disable client module '{}' after toggle failure", id, recoveryException);
+            }
+            try {
+                syncAndSaveConfigFromModules();
+            } catch (RuntimeException saveException) {
+                LOGGER.error("Failed to persist recovery state for client module '{}'", id, saveException);
+            }
         }
     }
 
