@@ -70,6 +70,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
 
+            // This format currently stores block types, not serialized block-state properties.
             if (current.is(wanted.getBlock())) {
                 cursor++;
                 continue;
@@ -98,12 +99,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Files.createDirectories(directory);
             if (!Files.exists(file)) {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n");
-                client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                        "Created schematic template: " + file.getFileName()), true);
+                schematic = Schematic.parse(Files.readString(file), requestedFile);
                 return;
             }
             schematic = Schematic.parse(Files.readString(file), requestedFile);
         } catch (IOException | JsonParseException | IllegalArgumentException exception) {
+            schematic = null;
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic error: " + exception.getMessage()), true);
         }
