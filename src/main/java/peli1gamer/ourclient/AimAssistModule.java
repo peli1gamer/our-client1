@@ -38,8 +38,12 @@ public final class AimAssistModule implements ToggleableModule {
         float wantedPitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
 
         float smoothing = Math.max(0.01f, Math.min(1.0f, config.aimSmoothing));
-        player.setYRot(approachAngle(player.getYRot(), wantedYaw, smoothing));
-        player.setXRot(approachAngle(player.getXRot(), wantedPitch, smoothing));
+        float newYaw = approachAngle(player.getYRot(), wantedYaw, smoothing);
+        float newPitch = approachAngle(player.getXRot(), wantedPitch, smoothing);
+        player.setYRot(newYaw);
+        player.setXRot(newPitch);
+        player.setYHeadRot(newYaw);
+        player.setYBodyRot(approachAngle(player.getYBodyRot(), newYaw, smoothing));
     }
 
     private LivingEntity findTarget(Minecraft client, LocalPlayer player, double range) {
