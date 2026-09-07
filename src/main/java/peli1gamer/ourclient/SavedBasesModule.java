@@ -70,6 +70,16 @@ public final class SavedBasesModule implements ToggleableModule {
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Saved base: " + normalizedName), true);
     }
 
+    public String nextAutomaticName() {
+        String base = "base-" + System.currentTimeMillis();
+        if (!bases.containsKey(base)) return base;
+        for (int suffix = 2; suffix <= MAX_BASES; suffix++) {
+            String candidate = base + "-" + suffix;
+            if (!bases.containsKey(candidate)) return candidate;
+        }
+        return base + "-" + System.nanoTime();
+    }
+
     public Map<String, SavedBase> bases() { return Map.copyOf(bases); }
 
     private Path path(Minecraft client) {
