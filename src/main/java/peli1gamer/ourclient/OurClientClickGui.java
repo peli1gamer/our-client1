@@ -39,10 +39,8 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     protected void init() {
-        selectedModuleId = null;
-        editingSearch = false;
-        editingSetting = null;
-        scrollOffset = 0;
+        // Keep GUI state when Minecraft recreates the screen during a resize.
+        scrollOffset = clampScroll(layout(categories().size()), height);
     }
 
     @Override
@@ -55,6 +53,7 @@ public final class OurClientClickGui extends Screen {
         String value = search.isEmpty() ? "Search modules..." : search;
         graphics.drawString(font, value + (editingSearch ? "_" : ""), searchX + 14, 48,
                 search.isEmpty() ? MUTED : TEXT, false);
+        if (!search.isEmpty()) graphics.drawString(font, "X", searchX + searchWidth - 20, 48, MUTED, false);
 
         List<Category> categories = categories();
         Layout layout = layout(categories.size());
@@ -152,6 +151,9 @@ public final class OurClientClickGui extends Screen {
         int searchWidth = Math.min(310, Math.max(160, width - 40));
         int searchX = (width - searchWidth) / 2;
         if (inside(mouseX, mouseY, searchX, 14, searchWidth, 70)) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && !search.isEmpty() && mouseX >= searchX + searchWidth - 36) {
+                search = "";
+            }
             editingSearch = true;
             editingSetting = null;
             return true;
