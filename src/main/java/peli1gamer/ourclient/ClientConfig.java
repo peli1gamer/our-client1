@@ -11,7 +11,7 @@ public final class ClientConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final long MAX_CONFIG_BYTES = 1024L * 1024L;
 
-    public boolean aimAssist;
+    public boolean aimAssist;\n    public boolean triggerBot;
     public boolean tracers;
     public boolean freecam;
     public boolean schematicBuilder;
