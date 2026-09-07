@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Simple keyboard/mouse friendly module browser with category navigation. */
+/** Keyboard/mouse friendly module browser with expandable, module-owned settings. */
 public final class OurClientClickGui extends Screen {
     private static final int ACCENT = 0xFF9B7BFF;
     private static final int BG = 0xE8101118;
@@ -29,6 +29,7 @@ public final class OurClientClickGui extends Screen {
     private String search = "";
     private boolean editingSearch;
     private String settingsId;
+    private int selectedSetting = -1;
 
     public OurClientClickGui() { super(Component.literal("Our Client")); }
 
@@ -81,48 +82,58 @@ public final class OurClientClickGui extends Screen {
             }
         }
 
-        String footer = "RIGHT SHIFT = GUI   |   ESC = close";
-        g.drawString(font, footer, contentX + 18, height - 32, MUTED, false);
+        g.drawString(font, "RIGHT SHIFT = GUI   |   ESC = close", contentX + 18, height - 32, MUTED, false);
         if (settingsId != null) renderSettings(g);
     }
 
     private void renderSettings(GuiGraphics g) {
         ClientModule module = OurClient.modules().get(settingsId);
-        if (module == null) { settingsId = null; return; }
-        int w = Math.min(430, width - 36), h = settingsHeight();
+        if (module == null) { closeSettings(); return; }
+
+        ModuleSettings settings = module instanceof ConfigurableModule configurable ? configurable.settings() : new ModuleSettings();
+        List<ModuleSettings.Entry> entries = visibleEntries(settings);
+        int w = Math.min(430, width - 36), h = settingsHeight(entries.size());
         int x = (width - w) / 2, y = (height - h) / 2;
         g.fill(x, y, x + w, y + h, 0xF2181822);
         g.fill(x, y, x + w, y + 3, ACCENT);
         g.drawString(font, pretty(settingsId) + " settings", x + 18, y + 16, TEXT, false);
         g.drawString(font, "ESC closes this panel", x + 18, y + 32, MUTED, false);
+
         int row = y + 55;
         if (module instanceof ToggleableModule toggleable) {
-            setting(g, x, row, w, "Enabled", toggleable.enabled() ? "ON" : "OFF");
+            setting(g, x, row, w, "Enabled", toggleable.enabled(), selectedSetting == -2, false);
             row += 38;
         }
-        ClientConfig c = OurClient.config();
-        if (c != null && settingsId.equals("aim-assist")) {
-            setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange)); row += 38;
-            setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
-            g.drawString(font, "Click a value, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
-        } else if (c != null && settingsId.equals("auto-schematic-builder")) {
-            setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
-            g.drawString(font, "Click the value, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
-        } else {
+        if (entries.isEmpty()) {
             g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
+        } else {
+            if (selectedSetting >= entries.size()) selectedSetting = entries.size() - 1;
+            for (int i = 0; i < entries.size(); i++) {
+                ModuleSettings.Entry entry = entries.get(i);
+                setting(g, x, row, w, entry.label(), entry.value().get(), i == selectedSetting, entry.type() == ModuleSettings.Type.TOGGLE);
+                row += 38;
+            }
         }
+        g.drawString(font, "Click a setting, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
     }
 
-    private int settingsHeight() {
-        if (settingsId != null && settingsId.equals("aim-assist")) return 190;
-        if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
-        return 130;
+    private static List<ModuleSettings.Entry> visibleEntries(ModuleSettings settings) {
+        List<ModuleSettings.Entry> result = new ArrayList<>();
+        for (ModuleSettings.Entry entry : settings.entries()) if (entry.visible()) result.add(entry);
+        return result;
     }
 
-    private void setting(GuiGraphics g, int x, int y, int w, String label, String value) {
+    private int settingsHeight(int entryCount) {
+        int rows = (OurClient.modules().get(settingsId) instanceof ToggleableModule ? 1 : 0) + Math.max(1, entryCount);
+        return Math.min(height - 20, 86 + rows * 38);
+    }
+
+    private void setting(GuiGraphics g, int x, int y, int w, String label, String value, boolean selected, boolean toggle) {
+        if (selected) g.fill(x + 10, y - 2, x + w - 10, y + 31, HOVER);
         g.drawString(font, label, x + 18, y + 9, TEXT, false);
-        g.fill(x + w - 145, y, x + w - 18, y + 28, ROW);
+        g.fill(x + w - 145, y, x + w - 18, y + 28, selected ? SELECTED : ROW);
         g.drawString(font, value, x + w - 135, y + 9, TEXT, false);
+        if (toggle) g.drawString(font, "click", x + w - 62, y + 9, MUTED, false);
     }
 
     private List<ClientModule> modulesForCategory() {
@@ -130,7 +141,7 @@ public final class OurClientClickGui extends Screen {
         for (ClientModule module : OurClient.modules().all()) {
             int cat = switch (module.id()) {
                 case "aim-assist" -> 0;
-                case "tracers" -> 1;
+                case "tracers", "esp" -> 1;
                 case "freecam" -> 2;
                 case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
                 default -> 4;
@@ -150,41 +161,50 @@ public final class OurClientClickGui extends Screen {
             if (inside(mx, my, left + 8, y, sidebar - 16, 29)) { category = i; selectedIndex = 0; return true; }
         }
         int contentX = left + sidebar + 18, contentW = width - contentX - 18, searchY = top + 48;
-        if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; settingsId = null; return true; }
-        if (settingsId != null) return handleSettingsClick(mx, my);
+        if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; closeSettings(); return true; }
+        if (settingsId != null) return handleSettingsClick(mx, my, button);
+
         List<ClientModule> modules = modulesForCategory();
         for (int i = 0; i < modules.size(); i++) {
             int y = searchY + 42 + i * 34;
             if (inside(mx, my, contentX + 14, y, contentW - 28, 30)) {
                 selectedIndex = i;
                 if (button == GLFW.GLFW_MOUSE_BUTTON_1 && modules.get(i) instanceof ToggleableModule t) toggle(modules.get(i).id(), t);
-                else if (button == GLFW.GLFW_MOUSE_BUTTON_2) settingsId = modules.get(i).id();
+                else if (button == GLFW.GLFW_MOUSE_BUTTON_2) { settingsId = modules.get(i).id(); selectedSetting = -1; }
                 return true;
             }
         }
         return super.mouseClicked(event, doubled);
     }
 
-    private boolean handleSettingsClick(double mx, double my) {
-        int w = Math.min(430, width - 36), h = settingsHeight();
+    private boolean handleSettingsClick(double mx, double my, int button) {
+        int w = Math.min(430, width - 36);
+        ClientModule module = OurClient.modules().get(settingsId);
+        if (module == null) { closeSettings(); return true; }
+        ModuleSettings settings = module instanceof ConfigurableModule configurable ? configurable.settings() : new ModuleSettings();
+        List<ModuleSettings.Entry> entries = visibleEntries(settings);
+        int h = settingsHeight(entries.size());
         int x = (width - w) / 2, y = (height - h) / 2;
-        if (inside(mx, my, x + w - 70, y, 70, 42)) { settingsId = null; return true; }
-        ClientConfig c = OurClient.config();
+        if (inside(mx, my, x + w - 70, y, 70, 42)) { closeSettings(); return true; }
+
         int row = y + 55;
-        if (OurClient.modules().get(settingsId) instanceof ToggleableModule t && inside(mx, my, x, row, w, 30)) {
-            toggle(settingsId, t); return true;
+        if (module instanceof ToggleableModule toggleable) {
+            if (inside(mx, my, x + 10, row - 2, w - 20, 33)) { selectedSetting = -2; toggle(settingsId, toggleable); return true; }
+            row += 38;
         }
-        row += 38;
-        if (c != null && settingsId.equals("aim-assist")) {
-            if (inside(mx, my, x, row, w, 30)) { editingSetting = "range"; return true; }
-            if (inside(mx, my, x, row + 38, w, 30)) { editingSetting = "smoothness"; return true; }
-        } else if (c != null && settingsId.equals("auto-schematic-builder") && inside(mx, my, x, row, w, 30)) {
-            editingSetting = "placements"; return true;
+        for (int i = 0; i < entries.size(); i++) {
+            if (inside(mx, my, x + 10, row - 2, w - 20, 33)) {
+                selectedSetting = i;
+                ModuleSettings.Entry entry = entries.get(i);
+                if (entry.type() == ModuleSettings.Type.TOGGLE && button == GLFW.GLFW_MOUSE_BUTTON_1) entry.increment().run();
+                return true;
+            }
+            row += 38;
         }
-        return false;
+        return true;
     }
 
-    private String editingSetting;
+    private void closeSettings() { settingsId = null; selectedSetting = -1; }
 
     private void toggle(String id, ToggleableModule t) {
         try { t.setEnabled(!t.enabled()); OurClient.syncAndSaveConfigFromModules(); }
@@ -193,32 +213,30 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double h, double v) {
-        if (editingSetting != null) { adjustSetting(v > 0 ? 1 : -1); return true; }
+        if (settingsId != null && selectedSetting >= 0) { adjustSelectedSetting(v > 0 ? 1 : -1); return true; }
         return super.mouseScrolled(mx, my, h, v);
     }
 
-    private void adjustSetting(int direction) {
-        ClientConfig c = OurClient.config();
-        if (c == null || editingSetting == null) return;
-        switch (editingSetting) {
-            case "range" -> c.aimRange = Math.max(1f, Math.min(64f, c.aimRange + direction));
-            case "smoothness" -> c.aimSmoothing = Math.max(.01f, Math.min(1f, c.aimSmoothing + direction * .01f));
-            case "placements" -> c.schematicPlacementsPerTick = Math.max(1, Math.min(20, c.schematicPlacementsPerTick + direction));
-            default -> { return; }
-        }
-        OurClient.syncAndSaveConfigFromModules();
+    private void adjustSelectedSetting(int direction) {
+        ClientModule module = OurClient.modules().get(settingsId);
+        if (!(module instanceof ConfigurableModule configurable)) return;
+        List<ModuleSettings.Entry> entries = visibleEntries(configurable.settings());
+        if (selectedSetting < 0 || selectedSetting >= entries.size()) return;
+        ModuleSettings.Entry entry = entries.get(selectedSetting);
+        if (direction > 0) entry.increment().run();
+        else entry.decrement().run();
     }
 
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
         if (key == GLFW.GLFW_KEY_ESCAPE) {
-            if (editingSearch || editingSetting != null) { editingSearch = false; editingSetting = null; return true; }
-            if (settingsId != null) { settingsId = null; return true; }
+            if (editingSearch) { editingSearch = false; return true; }
+            if (settingsId != null) { closeSettings(); return true; }
             onClose(); return true;
         }
-        if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
-            adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true;
+        if (settingsId != null && selectedSetting >= 0 && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
+            adjustSelectedSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true;
         }
         if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); return true; }
         List<ClientModule> modules = modulesForCategory();
@@ -227,7 +245,7 @@ public final class OurClientClickGui extends Screen {
         if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { selectedIndex = (selectedIndex + modules.size() - 1) % modules.size(); return true; }
         if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { selectedIndex = (selectedIndex + 1) % modules.size(); return true; }
         if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule t) toggle(m.id(), t); return true; }
-        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
+        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); selectedSetting = -1; return true; }
         return super.keyPressed(event);
     }
 
