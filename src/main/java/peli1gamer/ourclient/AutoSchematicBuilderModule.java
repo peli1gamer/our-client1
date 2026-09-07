@@ -4,8 +4,6 @@ import com.google.gson.JsonParseException;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
@@ -24,11 +22,11 @@ import java.util.List;
 
 /**
  * Client-side schematic placer. Schematics live in config/our-client1/schematics/*.json.
- * One placement is attempted per tick to avoid freezing the client on very large builds.
+ * Placement work is deliberately capped per tick so large builds do not monopolize the client thread.
  */
 public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final int MAX_PLACEMENT_RANGE = 6;
-    private static final int MAX_ATTEMPTS_PER_TICK = 1;
+    private static final int MAX_ATTEMPTS_PER_TICK = 20;
 
     private boolean enabled;
     private Schematic schematic;
@@ -60,8 +58,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                     "Schematic loaded: " + schematic.name() + " (" + schematic.blocks().size() + " blocks)"), true);
         }
 
+        ClientConfig config = OurClient.config();
+        int attemptsThisTick = config == null ? 1 : Math.min(MAX_ATTEMPTS_PER_TICK,
+                Math.max(1, config.schematicPlacementsPerTick));
         int attempts = 0;
-        while (cursor < schematic.blocks().size() && attempts < MAX_ATTEMPTS_PER_TICK) {
+
+        while (cursor < schematic.blocks().size() && attempts < attemptsThisTick) {
             Schematic.BlockEntry entry = schematic.blocks().get(cursor);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             BlockState wanted = entry.state();
@@ -77,7 +79,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         }
 
         if (cursor >= schematic.blocks().size()) {
-            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Schematic complete: " + schematic.name()), true);
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "Schematic complete: " + schematic.name()), true);
             enabled = false;
         }
     }
@@ -102,15 +105,15 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
         if (client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
 
+        int slot = findBlockSlot(wanted.getBlock());
+        if (slot < 0) return false;
+        client.player.getInventory().setSelectedSlot(slot);
+
         Direction[] directions = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP};
         for (Direction face : directions) {
             BlockPos support = target.relative(face.getOpposite());
             BlockState supportState = client.level.getBlockState(support);
             if (!supportState.isSolidRender()) continue;
-
-            int slot = findBlockSlot(wanted.getBlock());
-            if (slot < 0) return false;
-            client.player.getInventory().setSelectedSlot(slot);
 
             Vec3 hit = Vec3.atCenterOf(support).add(
                     face.getStepX() * 0.49,
