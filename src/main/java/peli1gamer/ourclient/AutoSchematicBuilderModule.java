@@ -16,6 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Comparator;
@@ -27,6 +28,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final int MAX_ATTEMPTS_PER_TICK = 20;
     private static final int NO_PROGRESS_NOTICE_TICKS = 40;
     private static final int RETRY_DELAY_TICKS = 2;
+    private static final long MAX_SCHEMATIC_FILE_BYTES = 8L * 1024L * 1024L;
 
     private boolean enabled;
     private Schematic schematic;
@@ -81,10 +83,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) {
-                completed.set(index);
-                cursor = (index + 1) % schematic.blocks().size();
-                madeProgress = true;
-                continue;
+                abortBuild(client, "Schematic target is outside the current world bounds.");
+                return;
             }
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
@@ -138,7 +138,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
-            if (!client.level.isInWorldBounds(target)) continue;
+            if (!client.level.isInWorldBounds(target)) return index;
             if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) {
                 return index;
             }
@@ -150,7 +150,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         loaded = true;
         Path directory = client.gameDirectory.toPath().resolve("config/our-client1/schematics");
         Path file = directory.resolve(requestedFile).normalize();
-        if (!file.getParent().equals(directory)) {
+        if (!file.getParent().equals(directory) || Files.isSymbolicLink(file)) {
             schematic = null;
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Invalid schematic path."), true);
             return;
@@ -158,7 +158,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         try {
             Files.createDirectories(directory);
             if (!Files.exists(file)) {
-                Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n");
+                Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n",
+                        StandardOpenOption.CREATE_NEW);
+            }
+            long size = Files.size(file);
+            if (size > MAX_SCHEMATIC_FILE_BYTES) {
+                throw new IllegalArgumentException("Schematic file is too large (max 8 MiB)");
             }
             schematic = Schematic.parse(Files.readString(file), requestedFile);
         } catch (IOException | RuntimeException exception) {
@@ -168,6 +173,17 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic error: " + message), true);
         }
+    }
+
+    private void abortBuild(Minecraft client, String message) {
+        client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(message), true);
+        enabled = false;
+        ClientConfig config = OurClient.config();
+        if (config != null) {
+            config.schematicBuilder = false;
+            config.save(OurClient.configPath(client));
+        }
+        resetProgress();
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
