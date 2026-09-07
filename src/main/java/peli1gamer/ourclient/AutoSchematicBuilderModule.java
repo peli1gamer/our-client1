@@ -1,6 +1,5 @@
 package peli1gamer.ourclient;
 
-import com.google.gson.JsonParseException;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -162,10 +161,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n");
             }
             schematic = Schematic.parse(Files.readString(file), requestedFile);
-        } catch (IOException | JsonParseException | IllegalArgumentException exception) {
+        } catch (IOException | RuntimeException exception) {
             schematic = null;
+            String message = exception.getMessage();
+            if (message == null || message.isBlank()) message = "Invalid schematic format";
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "Schematic error: " + exception.getMessage()), true);
+                    "Schematic error: " + message), true);
         }
     }
 
