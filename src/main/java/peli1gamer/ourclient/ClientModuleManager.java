@@ -25,6 +25,7 @@ public final class ClientModuleManager {
         try {
             register(new AimAssistModule());
             register(new TracersModule());
+            register(new ESPModule());
             register(new FreecamModule());
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
