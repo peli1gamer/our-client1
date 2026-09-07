@@ -2,6 +2,7 @@ package peli1gamer.ourclient;
 
 import com.google.gson.JsonParseException;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -120,7 +121,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                     face.getStepY() * 0.49,
                     face.getStepZ() * 0.49);
             BlockHitResult result = new BlockHitResult(hit, face, support, false);
-            InteractionResult action = client.gameMode.interactBlock(client.player, InteractionHand.MAIN_HAND, result);
+            InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, result);
             if (action.consumesAction()) {
                 client.player.swing(InteractionHand.MAIN_HAND);
                 return true;
@@ -130,8 +131,10 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private int findBlockSlot(Block block) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) return -1;
         for (int slot = 0; slot < 9; slot++) {
-            ItemStack stack = Minecraft.getInstance().player.getInventory().getItem(slot);
+            ItemStack stack = player.getInventory().getItem(slot);
             if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == block) return slot;
         }
         return -1;
