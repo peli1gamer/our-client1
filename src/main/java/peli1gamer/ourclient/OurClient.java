@@ -23,11 +23,7 @@ public final class OurClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        if (initialized) {
-            LOGGER.warn("Our Client initialization was requested more than once; ignoring the duplicate call");
-            return;
-        }
-
+        if (initialized) return;
         Minecraft client = Minecraft.getInstance();
         config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
@@ -37,6 +33,7 @@ public final class OurClient implements ClientModInitializer {
         registerKey("toggle_tracers", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_freecam", GLFW.GLFW_KEY_F6);
         registerKey("toggle_schematic", GLFW.GLFW_KEY_F7);
+        registerKey("toggle_scaffold", GLFW.GLFW_KEY_G);
         registerKey("save_base", GLFW.GLFW_KEY_V);
         registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT);
 
@@ -50,64 +47,41 @@ public final class OurClient implements ClientModInitializer {
 
     private static void registerKey(String id, int key) {
         if (KEYBINDS.containsKey(id)) return;
-        KeyMapping mapping = new KeyMapping(
-                "key.ourclient1." + id,
-                key,
-                KeyMapping.Category.MISC);
+        KeyMapping mapping = new KeyMapping("key.ourclient1." + id, key, KeyMapping.Category.MISC);
         KEYBINDS.put(id, KeyBindingHelper.registerKeyBinding(mapping));
     }
 
     private static void handleKeybinds(Minecraft client) {
-        if (client.screen != null) {
-            discardPendingKeybinds();
-            return;
-        }
-
+        if (client.screen != null) { discardPendingKeybinds(); return; }
         while (KEYBINDS.get("open_clickgui").consumeClick()) client.setScreen(new OurClientClickGui());
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
         while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam");
         while (KEYBINDS.get("toggle_schematic").consumeClick()) toggle("auto-schematic-builder");
+        while (KEYBINDS.get("toggle_scaffold").consumeClick()) toggle("scaffold");
         while (KEYBINDS.get("save_base").consumeClick()) {
             ClientModule module = MODULES.get("saved-bases");
             if (module instanceof SavedBasesModule bases) {
-                try {
-                    bases.saveCurrentBase(client, bases.nextAutomaticName());
-                } catch (RuntimeException exception) {
-                    LOGGER.error("Failed to save base from keybind", exception);
-                }
+                try { bases.saveCurrentBase(client, bases.nextAutomaticName()); }
+                catch (RuntimeException exception) { LOGGER.error("Failed to save base from keybind", exception); }
             }
         }
     }
 
     private static void discardPendingKeybinds() {
-        for (KeyMapping mapping : KEYBINDS.values()) {
-            while (mapping.consumeClick()) {
-                // Intentionally discard queued presses while a screen is active.
-            }
-        }
+        for (KeyMapping mapping : KEYBINDS.values()) while (mapping.consumeClick()) { }
     }
 
     private static void toggle(String id) {
         ClientModule module = MODULES.get(id);
         if (!(module instanceof ToggleableModule toggleable)) return;
-
-        boolean target = !toggleable.enabled();
         try {
-            toggleable.setEnabled(target);
+            toggleable.setEnabled(!toggleable.enabled());
             syncAndSaveConfigFromModules();
         } catch (RuntimeException exception) {
             LOGGER.error("Failed to toggle client module '{}'", id, exception);
-            try {
-                toggleable.setEnabled(false);
-            } catch (RuntimeException recoveryException) {
-                LOGGER.error("Failed to disable client module '{}' after toggle failure", id, recoveryException);
-            }
-            try {
-                syncAndSaveConfigFromModules();
-            } catch (RuntimeException saveException) {
-                LOGGER.error("Failed to persist recovery state for client module '{}'", id, saveException);
-            }
+            try { toggleable.setEnabled(false); } catch (RuntimeException ignored) { }
+            try { syncAndSaveConfigFromModules(); } catch (RuntimeException ignored) { }
         }
     }
 
@@ -117,6 +91,7 @@ public final class OurClient implements ClientModInitializer {
         setEnabled("freecam", false);
         setEnabled("auto-schematic-builder", config.schematicBuilder);
         setEnabled("saved-bases", config.savedBases);
+        setEnabled("scaffold", config.scaffold);
     }
 
     private static void setEnabled(String id, boolean enabled) {
@@ -136,6 +111,7 @@ public final class OurClient implements ClientModInitializer {
         config.freecam = enabled("freecam");
         config.schematicBuilder = enabled("auto-schematic-builder");
         config.savedBases = enabled("saved-bases");
+        config.scaffold = enabled("scaffold");
     }
 
     private static boolean enabled(String id) {
@@ -145,8 +121,5 @@ public final class OurClient implements ClientModInitializer {
 
     public static ClientModuleManager modules() { return MODULES; }
     public static ClientConfig config() { return config; }
-
-    public static Path configPath(Minecraft client) {
-        return client.gameDirectory.toPath().resolve("config/our-client1.json");
-    }
+    public static Path configPath(Minecraft client) { return client.gameDirectory.toPath().resolve("config/our-client1.json"); }
 }
