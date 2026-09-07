@@ -1,4 +1,4 @@
-# Our Client
+# Arson Client
 
 A client-side Fabric utility client for Minecraft 1.21.11.
 
@@ -10,6 +10,7 @@ A client-side Fabric utility client for Minecraft 1.21.11.
 - Auto schematic builder
 - Persistent saved base coordinates
 - JSON configuration
+- Arson Client fire-orange ClickGUI theme
 
 ## Requirements
 
