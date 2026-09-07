@@ -49,7 +49,9 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             int x = requiredInt(block, "x");
             int y = requiredInt(block, "y");
             int z = requiredInt(block, "z");
-            if (Math.abs(x) > MAX_COORDINATE || Math.abs(y) > MAX_COORDINATE || Math.abs(z) > MAX_COORDINATE) {
+            if (x < -MAX_COORDINATE || x > MAX_COORDINATE
+                    || y < -MAX_COORDINATE || y > MAX_COORDINATE
+                    || z < -MAX_COORDINATE || z > MAX_COORDINATE) {
                 throw new IllegalArgumentException("Schematic coordinate is out of bounds");
             }
             String id = requiredString(block, "block");
@@ -67,15 +69,23 @@ public record Schematic(String name, List<BlockEntry> blocks) {
 
     private static int requiredInt(JsonObject object, String key) {
         JsonElement value = object.get(key);
-        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()
+                || !value.getAsJsonPrimitive().isNumber()) {
             throw new IllegalArgumentException("Missing or invalid schematic field: " + key);
         }
-        return value.getAsInt();
+        Number number = value.getAsNumber();
+        double numeric = number.doubleValue();
+        int result = number.intValue();
+        if (!Double.isFinite(numeric) || numeric != result) {
+            throw new IllegalArgumentException("Schematic field must be an integer: " + key);
+        }
+        return result;
     }
 
     private static String requiredString(JsonObject object, String key) {
         JsonElement value = object.get(key);
-        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+        if (value == null || value.isJsonNull() || !value.isJsonPrimitive()
+                || !value.getAsJsonPrimitive().isString()) {
             throw new IllegalArgumentException("Missing or invalid schematic field: " + key);
         }
         String result = value.getAsString();
