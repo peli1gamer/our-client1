@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 
 public final class AimAssistModule implements ToggleableModule {
     private boolean enabled;
@@ -44,8 +45,10 @@ public final class AimAssistModule implements ToggleableModule {
     private LivingEntity findTarget(Minecraft client, LocalPlayer player, double range) {
         LivingEntity best = null;
         double bestDistance = range * range;
-        for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity living) || !isValidTarget(player, living, range)) continue;
+        AABB searchBox = player.getBoundingBox().inflate(range);
+        for (Entity entity : client.level.getEntities(player, searchBox,
+                candidate -> candidate instanceof LivingEntity living && isValidTarget(player, living, range))) {
+            if (!(entity instanceof LivingEntity living)) continue;
             double distance = player.distanceToSqr(living);
             if (distance >= bestDistance) continue;
             best = living;
