@@ -15,7 +15,7 @@ import java.util.Map;
 
 public final class OurClient implements ClientModInitializer {
     public static final String MOD_ID = "our-client1";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final Logger LOGGER = LoggerFactory.getLogger("Arson Client");
     private static final ClientModuleManager MODULES = new ClientModuleManager();
     private static final Map<String, KeyMapping> KEYBINDS = new LinkedHashMap<>();
     private static ClientConfig config;
@@ -42,7 +42,7 @@ public final class OurClient implements ClientModInitializer {
             MODULES.tick(tickClient);
         });
         initialized = true;
-        LOGGER.info("Our Client initialized with {} modules", MODULES.size());
+        LOGGER.info("Arson Client initialized with {} modules", MODULES.size());
     }
 
     private static void registerKey(String id, int key) {
