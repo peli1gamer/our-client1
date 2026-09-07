@@ -113,11 +113,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (completed.cardinality() >= schematic.blocks().size()) {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic complete: " + schematic.name()), true);
-            enabled = false;
-            if (config != null) {
-                config.schematicBuilder = false;
-                config.save(OurClient.configPath(client));
-            }
+            setEnabled(false);
             return;
         }
 
