@@ -11,9 +11,14 @@ public final class ClientConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final long MAX_CONFIG_BYTES = 1024L * 1024L;
 
+    public boolean aimAssist;
+    public boolean triggerBot;
+    public boolean crystalMacro;
+    public boolean attributeSwap;
     public boolean tracers;
     public boolean esp;
     public boolean freecam;
+    public boolean xray;
     public boolean schematicBuilder;
     public boolean savedBases = true;
     public boolean scaffold;
