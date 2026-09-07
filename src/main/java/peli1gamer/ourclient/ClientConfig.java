@@ -19,6 +19,7 @@ public final class ClientConfig {
     public boolean scaffold;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
+    public String aimTargetPart = "HEAD";
     public int schematicPlacementsPerTick = 1;
 
     public static ClientConfig load(Path path) {
@@ -56,6 +57,9 @@ public final class ClientConfig {
         if (!Float.isFinite(aimRange)) aimRange = 12.0f;
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
+        if (aimTargetPart == null) aimTargetPart = "HEAD";
+        try { AimTargetPart.valueOf(aimTargetPart.toUpperCase(java.util.Locale.ROOT)); }
+        catch (IllegalArgumentException exception) { aimTargetPart = "HEAD"; }
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
     }
 }
