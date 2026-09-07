@@ -24,7 +24,7 @@ import java.util.List;
 
 /** Client-side JSON schematic placer. */
 public final class AutoSchematicBuilderModule implements ToggleableModule {
-    private static final int MAX_PLACEMENT_RANGE = 6;
+    private static final double MAX_PLACEMENT_RANGE = 6.0D;
     private static final int MAX_ATTEMPTS_PER_TICK = 20;
     private static final int NO_PROGRESS_NOTICE_TICKS = 40;
     private static final int RETRY_DELAY_TICKS = 2;
@@ -99,7 +99,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (retryCooldown > 0) break;
             if (place(client, target, wanted)) {
                 attempts++;
-                // Client-side prediction may update immediately, but a remote server can acknowledge later.
                 if (client.level.getBlockState(target).is(wanted.getBlock())) {
                     completed.set(index);
                     cursor = (index + 1) % schematic.blocks().size();
@@ -131,13 +130,14 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int findNextWorkItem(Minecraft client) {
         if (schematic == null || origin == null || completed == null || schematic.blocks().isEmpty()) return -1;
         int size = schematic.blocks().size();
+        double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
         for (int offset = 0; offset < size; offset++) {
             int index = (cursor + offset) % size;
             if (completed.get(index)) continue;
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) return index;
-            if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) {
+            if (client.player.distanceToSqr(Vec3.atCenterOf(target)) <= maxRangeSquared) {
                 return index;
             }
         }
@@ -185,12 +185,12 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
-        if (!client.level.isInWorldBounds(target)
-                || client.player.distanceToSqr(Vec3.atCenterOf(target)) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) return false;
+        if (!client.level.isInWorldBounds(target)) return false;
         int slot = findBlockSlot(client.player, wanted.getBlock());
         if (slot < 0) return false;
         client.player.getInventory().setSelectedSlot(slot);
 
+        double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
         Direction[] supportDirections = {
                 Direction.DOWN, Direction.NORTH, Direction.SOUTH,
                 Direction.WEST, Direction.EAST, Direction.UP
@@ -204,6 +204,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                     face.getStepX() * 0.49,
                     face.getStepY() * 0.49,
                     face.getStepZ() * 0.49);
+            if (client.player.distanceToSqr(hit) > maxRangeSquared) continue;
             BlockHitResult result = new BlockHitResult(hit, face, support, false);
             InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, result);
             if (action.consumesAction()) {
