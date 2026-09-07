@@ -17,11 +17,13 @@ public final class SavedBasesModule implements ToggleableModule {
     private static final int MAX_NAME_LENGTH = 64;
     private static final int MAX_DIMENSION_LENGTH = 256;
     private static final long MAX_FILE_BYTES = 1024L * 1024L;
+    private static final int LOAD_RETRY_DELAY_TICKS = 200;
 
     private final Map<String, SavedBase> bases = new LinkedHashMap<>();
     private boolean enabled = true;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private boolean loaded;
+    private int loadRetryCooldown;
 
     @Override public String id() { return "saved-bases"; }
     @Override public boolean enabled() { return enabled; }
@@ -36,9 +38,14 @@ public final class SavedBasesModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft client) {
         if (loaded) return;
+        if (loadRetryCooldown > 0) {
+            loadRetryCooldown--;
+            return;
+        }
         ClientConfig config = OurClient.config();
         if (config != null) enabled = config.savedBases;
         if (load(client)) loaded = true;
+        else loadRetryCooldown = LOAD_RETRY_DELAY_TICKS;
     }
 
     public void saveCurrentBase(Minecraft client, String name) {
