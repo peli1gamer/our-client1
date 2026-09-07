@@ -6,6 +6,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import org.joml.Vector3d;
+import org.lwjgl.BufferUtils;
+
+import java.nio.DoubleBuffer;
 
 /** Client-only free camera. The real player remains at the original server position. */
 public final class FreecamModule implements ToggleableModule {
@@ -13,6 +16,7 @@ public final class FreecamModule implements ToggleableModule {
     private static final double SPRINT_MULTIPLIER = 3.0D;
     private static final double MOUSE_SENSITIVITY = 0.12D;
 
+    private final DoubleBuffer cursorBuffer = BufferUtils.createDoubleBuffer(2);
     private boolean enabled;
     private ItemEntity camera;
     private Entity previousCamera;
@@ -92,7 +96,6 @@ public final class FreecamModule implements ToggleableModule {
     private void freezePlayerInput(LocalPlayer player) {
         if (inputOwner == player) return;
         if (inputOwner != null && previousInput != null) {
-            // The old player entity is no longer current; its input object can be discarded.
             previousInput = null;
         }
         previousInput = player.input;
@@ -122,12 +125,9 @@ public final class FreecamModule implements ToggleableModule {
         long window = client.getWindow().handle();
         if (window == 0L || camera == null) return;
 
-        double[] x = new double[1];
-        double[] y = new double[1];
-        org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, x, y);
-
-        double dx = x[0] - cursorX;
-        double dy = y[0] - cursorY;
+        org.lwjgl.glfw.GLFW.glfwGetCursorPos(window, cursorBuffer);
+        double dx = cursorBuffer.get(0) - cursorX;
+        double dy = cursorBuffer.get(1) - cursorY;
         if (dx != 0.0D || dy != 0.0D) {
             camera.setYRot(camera.getYRot() + (float) (dx * MOUSE_SENSITIVITY));
             camera.setXRot(clampPitch(camera.getXRot() - (float) (dy * MOUSE_SENSITIVITY)));
