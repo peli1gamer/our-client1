@@ -23,9 +23,17 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
+            // Combat
+            register(new AimAssistModule());
+
+            // Visual
             register(new TracersModule());
             register(new ESPModule());
+
+            // Movement
             register(new FreecamModule());
+
+            // World
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
             register(new ScaffoldModule());
