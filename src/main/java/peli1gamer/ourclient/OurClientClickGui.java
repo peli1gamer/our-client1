@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Screenshot-inspired floating ClickGUI backed by the real client modules. */
+/** Responsive ClickGUI backed by the real client modules. */
 public final class OurClientClickGui extends Screen {
     private static final int PANEL_WIDTH = 250;
     private static final int TITLE_HEIGHT = 28;
@@ -30,42 +30,46 @@ public final class OurClientClickGui extends Screen {
     private String search = "";
     private String selectedModuleId;
     private boolean editingSearch;
-    private boolean editingNumber;
+    private String editingSetting;
+    private double scrollOffset;
 
-    public OurClientClickGui() { super(Component.literal("Our Client")); }
+    public OurClientClickGui() {
+        super(Component.literal("Our Client"));
+    }
 
     @Override
     protected void init() {
         selectedModuleId = null;
         editingSearch = false;
-        editingNumber = false;
+        editingSetting = null;
+        scrollOffset = 0;
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         graphics.fill(0, 0, width, height, BG);
+
         int searchWidth = Math.min(310, Math.max(160, width - 40));
         int searchX = (width - searchWidth) / 2;
         drawPanel(graphics, searchX, 14, searchWidth, 70, "SEARCH");
-        String placeholder = search.isEmpty() ? "Search modules..." : search;
-        graphics.drawString(font, placeholder + (editingSearch ? "_" : ""), searchX + 14, 48,
+        String value = search.isEmpty() ? "Search modules..." : search;
+        graphics.drawString(font, value + (editingSearch ? "_" : ""), searchX + 14, 48,
                 search.isEmpty() ? MUTED : TEXT, false);
 
         List<Category> categories = categories();
-        int columns = Math.max(1, Math.min(5, categories.size()));
-        int available = width - GAP * (columns + 1);
-        int panelWidth = Math.min(PANEL_WIDTH, Math.max(145, available / columns));
-        int totalWidth = columns * panelWidth + (columns - 1) * GAP;
-        int startX = Math.max(GAP, (width - totalWidth) / 2);
+        Layout layout = layout(categories.size());
+        scrollOffset = clampScroll(layout, height);
 
+        graphics.enableScissor(0, 94, width, Math.max(95, height - 24));
         for (int i = 0; i < categories.size(); i++) {
-            int x = startX + (i % columns) * (panelWidth + GAP);
-            int y = 100 + (i / columns) * 260;
-            renderCategory(graphics, categories.get(i), x, y, panelWidth, mouseX, mouseY);
+            int x = layout.startX + (i % layout.columns) * (layout.panelWidth + GAP);
+            int y = (int) (100 + (i / layout.columns) * layout.rowHeight - scrollOffset);
+            renderCategory(graphics, categories.get(i), x, y, layout.panelWidth, mouseX, mouseY);
         }
+        graphics.disableScissor();
 
         if (selectedModuleId != null) renderSettings(graphics);
-        String footer = "OUR CLIENT  |  Click to toggle  |  ... settings  |  ESC close";
+        String footer = "OUR CLIENT  |  Click toggle  |  ... settings  |  Scroll  |  ESC close";
         graphics.drawString(font, footer, Math.max(8, (width - font.width(footer)) / 2), height - 18, MUTED, false);
     }
 
@@ -76,6 +80,7 @@ public final class OurClientClickGui extends Screen {
         graphics.fill(x, y, x + panelWidth, y + 2, ACCENT);
         drawCentered(graphics, category.name(), x, y + 9, panelWidth, TEXT);
         graphics.drawString(font, "-", x + panelWidth - 17, y + 9, ACCENT, false);
+
         if (modules.isEmpty()) {
             drawCentered(graphics, "No modules", x, y + TITLE_HEIGHT + 7, panelWidth, MUTED);
             return;
@@ -95,7 +100,11 @@ public final class OurClientClickGui extends Screen {
 
     private void renderSettings(GuiGraphics graphics) {
         ClientModule module = OurClient.modules().get(selectedModuleId);
-        if (module == null) { selectedModuleId = null; return; }
+        if (module == null) {
+            selectedModuleId = null;
+            editingSetting = null;
+            return;
+        }
         int panelWidth = Math.min(410, Math.max(180, width - 40));
         int panelHeight = selectedModuleId.equals("aim-assist") ? 210
                 : selectedModuleId.equals("auto-schematic-builder") ? 190 : 145;
@@ -105,6 +114,7 @@ public final class OurClientClickGui extends Screen {
         graphics.fill(x, y, x + panelWidth, y + 2, ACCENT);
         graphics.drawString(font, pretty(selectedModuleId) + " Settings", x + 18, y + 16, TEXT, false);
         graphics.drawString(font, "X", x + panelWidth - 22, y + 16, ACCENT, false);
+
         int rowY = y + 48;
         if (module instanceof ToggleableModule toggleable) {
             settingRow(graphics, "Enabled", toggleable.enabled() ? "ON" : "OFF", x, rowY, panelWidth, toggleable.enabled());
@@ -112,14 +122,14 @@ public final class OurClientClickGui extends Screen {
         }
         ClientConfig config = OurClient.config();
         if (config != null && selectedModuleId.equals("aim-assist")) {
-            settingRow(graphics, "Range", String.format(Locale.ROOT, "%.1f", config.aimRange), x, rowY, panelWidth, false);
+            settingRow(graphics, "Range", String.format(Locale.ROOT, "%.1f", config.aimRange), x, rowY, panelWidth, "range".equals(editingSetting));
             rowY += 38;
-            settingRow(graphics, "Smoothness", String.format(Locale.ROOT, "%.2f", config.aimSmoothing), x, rowY, panelWidth, false);
+            settingRow(graphics, "Smoothness", String.format(Locale.ROOT, "%.2f", config.aimSmoothing), x, rowY, panelWidth, "smoothness".equals(editingSetting));
             rowY += 38;
-            graphics.drawString(font, editingNumber ? "Wheel / arrows to adjust" : "Range 1-64 | Smoothness 0.01-1.00", x + 18, rowY + 8, MUTED, false);
+            graphics.drawString(font, editingSetting == null ? "Click a value, then use wheel / arrows" : "Wheel / arrows to adjust", x + 18, rowY + 8, MUTED, false);
         } else if (config != null && selectedModuleId.equals("auto-schematic-builder")) {
-            settingRow(graphics, "Placements / tick", Integer.toString(config.schematicPlacementsPerTick), x, rowY, panelWidth, false);
-            graphics.drawString(font, "Wheel / arrows to adjust", x + 18, rowY + 50, MUTED, false);
+            settingRow(graphics, "Placements / tick", Integer.toString(config.schematicPlacementsPerTick), x, rowY, panelWidth, "placements".equals(editingSetting));
+            graphics.drawString(font, editingSetting == null ? "Click the value, then use wheel / arrows" : "Wheel / arrows to adjust", x + 18, rowY + 50, MUTED, false);
         } else {
             graphics.drawString(font, "More settings will appear as the module grows.", x + 18, rowY + 10, MUTED, false);
         }
@@ -135,43 +145,74 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        double mouseX = event.x(), mouseY = event.y();
+        double mouseX = event.x();
+        double mouseY = event.y();
         int button = event.button();
+
         int searchWidth = Math.min(310, Math.max(160, width - 40));
         int searchX = (width - searchWidth) / 2;
         if (inside(mouseX, mouseY, searchX, 14, searchWidth, 70)) {
             editingSearch = true;
-            editingNumber = false;
+            editingSetting = null;
             return true;
         }
         if (selectedModuleId != null && handleSettingsClick(mouseX, mouseY)) return true;
 
         List<Category> categories = categories();
-        int columns = Math.max(1, Math.min(5, categories.size()));
-        int available = width - GAP * (columns + 1);
-        int panelWidth = Math.min(PANEL_WIDTH, Math.max(145, available / columns));
-        int totalWidth = columns * panelWidth + (columns - 1) * GAP;
-        int startX = Math.max(GAP, (width - totalWidth) / 2);
+        Layout layout = layout(categories.size());
         for (int i = 0; i < categories.size(); i++) {
-            Category category = categories.get(i);
-            int x = startX + (i % columns) * (panelWidth + GAP);
-            int y = 100 + (i / columns) * 260;
-            List<ClientModule> modules = filtered(category.modules());
+            int x = layout.startX + (i % layout.columns) * (layout.panelWidth + GAP);
+            int y = (int) (100 + (i / layout.columns) * layout.rowHeight - scrollOffset);
+            List<ClientModule> modules = filtered(categories.get(i).modules());
             for (int row = 0; row < modules.size(); row++) {
                 int rowY = y + TITLE_HEIGHT + row * ROW_HEIGHT;
-                if (!inside(mouseX, mouseY, x + 4, rowY, panelWidth - 8, ROW_HEIGHT)) continue;
+                if (!inside(mouseX, mouseY, x + 4, rowY, layout.panelWidth - 8, ROW_HEIGHT)) continue;
                 ClientModule module = modules.get(row);
-                if (mouseX >= x + panelWidth - 44) {
+                if (button == GLFW.GLFW_MOUSE_BUTTON_1 && mouseX >= x + layout.panelWidth - 44) {
                     selectedModuleId = module.id();
                     editingSearch = false;
-                } else if (module instanceof ToggleableModule toggleable && button == GLFW.GLFW_MOUSE_BUTTON_1) {
+                    editingSetting = null;
+                } else if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule toggleable) {
                     toggle(module.id(), toggleable);
                 }
                 return true;
             }
         }
         editingSearch = false;
+        editingSetting = null;
         return super.mouseClicked(event, doubled);
+    }
+
+    private boolean handleSettingsClick(double mouseX, double mouseY) {
+        int panelWidth = Math.min(410, Math.max(180, width - 40));
+        int panelHeight = selectedModuleId.equals("aim-assist") ? 210
+                : selectedModuleId.equals("auto-schematic-builder") ? 190 : 145;
+        int x = (width - panelWidth) / 2;
+        int y = Math.max(95, height - panelHeight - 42);
+        if (inside(mouseX, mouseY, x + panelWidth - 45, y, 45, 38)) {
+            selectedModuleId = null;
+            editingSetting = null;
+            return true;
+        }
+        ClientModule module = OurClient.modules().get(selectedModuleId);
+        if (module instanceof ToggleableModule toggleable && inside(mouseX, mouseY, x, y + 42, panelWidth, 34)) {
+            toggle(selectedModuleId, toggleable);
+            return true;
+        }
+        if (selectedModuleId.equals("aim-assist")) {
+            if (inside(mouseX, mouseY, x, y + 80, panelWidth, 34)) {
+                editingSetting = "range";
+                return true;
+            }
+            if (inside(mouseX, mouseY, x, y + 118, panelWidth, 34)) {
+                editingSetting = "smoothness";
+                return true;
+            }
+        } else if (selectedModuleId.equals("auto-schematic-builder") && inside(mouseX, mouseY, x, y + 80, panelWidth, 34)) {
+            editingSetting = "placements";
+            return true;
+        }
+        return false;
     }
 
     private void toggle(String id, ToggleableModule toggleable) {
@@ -185,56 +226,55 @@ public final class OurClientClickGui extends Screen {
         }
     }
 
-    private boolean handleSettingsClick(double mouseX, double mouseY) {
-        int panelWidth = Math.min(410, Math.max(180, width - 40));
-        int panelHeight = selectedModuleId.equals("aim-assist") ? 210
-                : selectedModuleId.equals("auto-schematic-builder") ? 190 : 145;
-        int x = (width - panelWidth) / 2;
-        int y = Math.max(95, height - panelHeight - 42);
-        if (inside(mouseX, mouseY, x + panelWidth - 45, y, 45, 38)) {
-            selectedModuleId = null;
-            editingNumber = false;
-            return true;
-        }
-        ClientModule module = OurClient.modules().get(selectedModuleId);
-        if (module instanceof ToggleableModule toggleable && inside(mouseX, mouseY, x, y + 42, panelWidth, 34)) {
-            toggle(selectedModuleId, toggleable);
-            return true;
-        }
-        if ((selectedModuleId.equals("aim-assist") && inside(mouseX, mouseY, x, y + 80, panelWidth, 80))
-                || (selectedModuleId.equals("auto-schematic-builder") && inside(mouseX, mouseY, x, y + 80, panelWidth, 38))) {
-            editingNumber = true;
-            editingSearch = false;
-            return true;
-        }
-        return false;
-    }
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (editingNumber && OurClient.config() != null && selectedModuleId != null) {
-            ClientConfig config = OurClient.config();
-            if (selectedModuleId.equals("aim-assist")) config.aimRange += (float) verticalAmount;
-            else if (selectedModuleId.equals("auto-schematic-builder")) config.schematicPlacementsPerTick += verticalAmount > 0 ? 1 : -1;
-            OurClient.syncAndSaveConfigFromModules();
+        if (editingSetting != null && OurClient.config() != null) {
+            adjustSetting(verticalAmount > 0 ? 1 : -1);
+            return true;
+        }
+        if (mouseY >= 94) {
+            scrollOffset -= verticalAmount * 24.0;
+            scrollOffset = clampScroll(layout(categories().size()), height);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
+    private void adjustSetting(int direction) {
+        ClientConfig config = OurClient.config();
+        if (config == null || editingSetting == null) return;
+        switch (editingSetting) {
+            case "range" -> config.aimRange = Math.max(1.0f, Math.min(64.0f, config.aimRange + direction));
+            case "smoothness" -> config.aimSmoothing = Math.max(0.01f, Math.min(1.0f, config.aimSmoothing + direction * 0.01f));
+            case "placements" -> config.schematicPlacementsPerTick = Math.max(1, Math.min(20, config.schematicPlacementsPerTick + direction));
+            default -> { return; }
+        }
+        OurClient.syncAndSaveConfigFromModules();
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
         int keyCode = event.key();
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE) { onClose(); return true; }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            if (editingSearch || editingSetting != null) {
+                editingSearch = false;
+                editingSetting = null;
+                return true;
+            }
+            onClose();
+            return true;
+        }
         if (editingSearch && keyCode == GLFW.GLFW_KEY_BACKSPACE) {
             if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
             return true;
         }
-        if (editingNumber && OurClient.config() != null && (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT)) {
-            int direction = keyCode == GLFW.GLFW_KEY_RIGHT ? 1 : -1;
-            if (selectedModuleId.equals("aim-assist")) OurClient.config().aimRange += direction;
-            else if (selectedModuleId.equals("auto-schematic-builder")) OurClient.config().schematicPlacementsPerTick += direction;
-            OurClient.syncAndSaveConfigFromModules();
+        if (editingSetting != null && OurClient.config() != null
+                && (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_RIGHT)) {
+            adjustSetting(keyCode == GLFW.GLFW_KEY_RIGHT ? 1 : -1);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_HOME) {
+            scrollOffset = 0;
             return true;
         }
         return super.keyPressed(event);
@@ -256,7 +296,11 @@ public final class OurClientClickGui extends Screen {
     }
 
     private List<Category> categories() {
-        List<ClientModule> combat = new ArrayList<>(), visual = new ArrayList<>(), movement = new ArrayList<>(), world = new ArrayList<>(), client = new ArrayList<>();
+        List<ClientModule> combat = new ArrayList<>();
+        List<ClientModule> visual = new ArrayList<>();
+        List<ClientModule> movement = new ArrayList<>();
+        List<ClientModule> world = new ArrayList<>();
+        List<ClientModule> client = new ArrayList<>();
         for (ClientModule module : OurClient.modules().all()) {
             switch (module.id()) {
                 case "aim-assist" -> combat.add(module);
@@ -273,6 +317,31 @@ public final class OurClientClickGui extends Screen {
         if (!world.isEmpty()) result.add(new Category("WORLD", world));
         if (!client.isEmpty()) result.add(new Category("CLIENT", client));
         return result;
+    }
+
+    private Layout layout(int categoryCount) {
+        if (categoryCount <= 0) return new Layout(1, 145, GAP, 0);
+        int columns = Math.max(1, Math.min(4, (width + GAP) / (PANEL_WIDTH + GAP)));
+        columns = Math.min(columns, categoryCount);
+        int available = Math.max(145, width - GAP * (columns + 1));
+        int panelWidth = Math.min(PANEL_WIDTH, available / columns);
+        int rowHeight = 100 + categoryHeight() + GAP;
+        int totalWidth = columns * panelWidth + (columns - 1) * GAP;
+        int startX = Math.max(GAP, (width - totalWidth) / 2);
+        return new Layout(columns, panelWidth, startX, rowHeight);
+    }
+
+    private int categoryHeight() {
+        int max = 1;
+        for (Category category : categories()) max = Math.max(max, filtered(category.modules()).size());
+        return TITLE_HEIGHT + max * ROW_HEIGHT + 8;
+    }
+
+    private double clampScroll(Layout layout, int screenHeight) {
+        int rows = (categories().size() + layout.columns - 1) / layout.columns;
+        double contentBottom = 100 + Math.max(0, rows - 1) * layout.rowHeight + categoryHeight();
+        double max = Math.max(0, contentBottom - (screenHeight - 24));
+        return Math.max(0, Math.min(max, scrollOffset));
     }
 
     private void drawPanel(GuiGraphics graphics, int x, int y, int panelWidth, int panelHeight, String title) {
@@ -301,4 +370,5 @@ public final class OurClientClickGui extends Screen {
     }
 
     private record Category(String name, List<ClientModule> modules) {}
+    private record Layout(int columns, int panelWidth, int startX, int rowHeight) {}
 }
