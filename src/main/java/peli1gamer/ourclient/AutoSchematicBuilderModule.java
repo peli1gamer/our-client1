@@ -136,7 +136,9 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) return index;
-            if (hasReachableSupport(client, target)) return index;
+            if (client.level.getBlockState(target).is(entry.state().getBlock()) || hasReachableSupport(client, target)) {
+                return index;
+            }
         }
         return -1;
     }
