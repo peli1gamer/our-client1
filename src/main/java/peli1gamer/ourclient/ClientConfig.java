@@ -11,11 +11,8 @@ public final class ClientConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final long MAX_CONFIG_BYTES = 1024L * 1024L;
 
-    public boolean aimAssist;
-    public boolean triggerBot;
-    public boolean crystalMacro;
-    public boolean attributeSwap;
     public boolean tracers;
+    public boolean esp;
     public boolean freecam;
     public boolean schematicBuilder;
     public boolean savedBases = true;
@@ -23,7 +20,6 @@ public final class ClientConfig {
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
     public int schematicPlacementsPerTick = 1;
-    public int triggerBotDelay = 4;
 
     public static ClientConfig load(Path path) {
         try {
@@ -61,6 +57,5 @@ public final class ClientConfig {
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
-        triggerBotDelay = Math.max(1, Math.min(20, triggerBotDelay));
     }
 }
