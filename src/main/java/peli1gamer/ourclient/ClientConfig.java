@@ -10,6 +10,7 @@ import java.nio.file.StandardCopyOption;
 /** Small JSON-backed client configuration. */
 public final class ClientConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final long MAX_CONFIG_BYTES = 1024L * 1024L;
 
     public boolean aimAssist;
     public boolean tracers;
@@ -24,6 +25,9 @@ public final class ClientConfig {
     public static ClientConfig load(Path path) {
         try {
             if (Files.exists(path)) {
+                if (Files.size(path) > MAX_CONFIG_BYTES) {
+                    throw new IOException("Configuration file is too large");
+                }
                 ClientConfig value = GSON.fromJson(Files.readString(path), ClientConfig.class);
                 if (value != null) {
                     value.sanitize();
