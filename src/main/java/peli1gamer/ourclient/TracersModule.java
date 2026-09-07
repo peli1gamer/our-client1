@@ -5,8 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.RenderTypes;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
@@ -71,8 +70,7 @@ public final class TracersModule implements ToggleableModule {
             if (lines.isEmpty()) return;
 
             // Minecraft 1.21.11 moved world feature rendering onto SubmitNodeCollector.
-            // Writing directly into the AFTER_ENTITIES MultiBufferSource can race the
-            // render pipeline and crash the client. Submit immutable geometry instead.
+            // Submit immutable geometry instead of writing directly to the old buffer path.
             context.commandQueue().submitCustomGeometry(
                     matrices,
                     RenderTypes.lines(),
