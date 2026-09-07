@@ -38,6 +38,7 @@ public final class OurClient implements ClientModInitializer {
         registerKey("toggle_freecam", GLFW.GLFW_KEY_F6);
         registerKey("toggle_schematic", GLFW.GLFW_KEY_F7);
         registerKey("save_base", GLFW.GLFW_KEY_V);
+        registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT);
 
         ClientTickEvents.END_CLIENT_TICK.register(tickClient -> {
             handleKeybinds(tickClient);
@@ -62,6 +63,7 @@ public final class OurClient implements ClientModInitializer {
             return;
         }
 
+        while (KEYBINDS.get("open_clickgui").consumeClick()) client.setScreen(new OurClientClickGui());
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
         while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam");
