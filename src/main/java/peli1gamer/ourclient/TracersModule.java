@@ -5,10 +5,13 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public final class TracersModule implements ToggleableModule {
     private static final double MAX_RANGE = 64.0D;
@@ -46,43 +49,53 @@ public final class TracersModule implements ToggleableModule {
         if (client.player == null || client.level == null) return;
 
         PoseStack matrices = context.matrices();
-        if (matrices == null || context.consumers() == null) return;
-
-        Entity cameraEntity = client.getCameraEntity();
-        if (cameraEntity == null) return;
+        if (matrices == null || context.commandQueue() == null) return;
 
         try {
-            Vec3 cameraPos = cameraEntity.getEyePosition(1.0F);
-            VertexConsumer lines = context.consumers().getBuffer(RenderTypes.lines());
+            Vec3 cameraPos = client.getCameraEntity() != null
+                    ? client.getCameraEntity().getEyePosition(1.0F)
+                    : client.player.getEyePosition(1.0F);
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
+            List<TracerLine> lines = new ArrayList<>();
 
-            matrices.pushPose();
-            try {
-                for (Player target : client.level.players()) {
-                    if (target == client.player || !target.isAlive()) continue;
-                    if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
+            for (Player target : client.level.players()) {
+                if (target == client.player || !target.isAlive()) continue;
+                if (client.player.distanceToSqr(target) > maxRangeSquared) continue;
 
-                    double x = target.getX() - cameraPos.x;
-                    double y = target.getEyeY() - cameraPos.y;
-                    double z = target.getZ() - cameraPos.z;
-
-                    PoseStack.Pose pose = matrices.last();
-                    lines.addVertex(pose, 0.0f, 0.0f, 0.0f)
-                            .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                            .setNormal(pose, 0.0f, 1.0f, 0.0f);
-                    lines.addVertex(pose, (float) x, (float) y, (float) z)
-                            .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                            .setNormal(pose, 0.0f, 1.0f, 0.0f);
-                }
-            } finally {
-                matrices.popPose();
+                lines.add(new TracerLine(
+                        (float) (target.getX() - cameraPos.x),
+                        (float) (target.getEyeY() - cameraPos.y),
+                        (float) (target.getZ() - cameraPos.z)));
             }
+
+            if (lines.isEmpty()) return;
+
+            // Minecraft 1.21.11 moved world feature rendering onto SubmitNodeCollector.
+            // Writing directly into the AFTER_ENTITIES MultiBufferSource can race the
+            // render pipeline and crash the client. Submit immutable geometry instead.
+            context.commandQueue().submitCustomGeometry(
+                    matrices,
+                    RenderTypes.lines(),
+                    (pose, consumer) -> emitLines(pose, consumer, lines));
         } catch (RuntimeException exception) {
             enabled = false;
             if (activeInstance == this) activeInstance = null;
-            OurClient.LOGGER.error("Disabling tracers after a render failure", exception);
+            OurClient.LOGGER.error("Disabling tracers after a render submission failure", exception);
             ClientConfig config = OurClient.config();
             if (config != null) config.tracers = false;
         }
     }
+
+    private static void emitLines(PoseStack.Pose pose, VertexConsumer consumer, List<TracerLine> lines) {
+        for (TracerLine line : lines) {
+            consumer.addVertex(pose, 0.0f, 0.0f, 0.0f)
+                    .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                    .setNormal(pose, 0.0f, 1.0f, 0.0f);
+            consumer.addVertex(pose, line.x(), line.y(), line.z())
+                    .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                    .setNormal(pose, 0.0f, 1.0f, 0.0f);
+        }
+    }
+
+    private record TracerLine(float x, float y, float z) {}
 }
