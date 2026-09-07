@@ -16,15 +16,8 @@ public final class FreecamModule implements ToggleableModule {
     private double cursorX;
     private double cursorY;
 
-    @Override
-    public String id() {
-        return "freecam";
-    }
-
-    @Override
-    public boolean enabled() {
-        return enabled;
-    }
+    @Override public String id() { return "freecam"; }
+    @Override public boolean enabled() { return enabled; }
 
     @Override
     public void setEnabled(boolean enabled) {
@@ -32,11 +25,8 @@ public final class FreecamModule implements ToggleableModule {
         this.enabled = enabled;
 
         Minecraft client = Minecraft.getInstance();
-        if (enabled) {
-            enter(client);
-        } else {
-            exit(client);
-        }
+        if (enabled) enter(client);
+        else exit(client);
     }
 
     @Override
@@ -58,7 +48,8 @@ public final class FreecamModule implements ToggleableModule {
             return;
         }
 
-        camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(), net.minecraft.world.item.ItemStack.EMPTY);
+        camera = new ItemEntity(client.level, player.getX(), player.getEyeY() - 0.25D, player.getZ(),
+                net.minecraft.world.item.ItemStack.EMPTY);
         camera.setYRot(player.getYRot());
         camera.setXRot(player.getXRot());
 
@@ -67,9 +58,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void exit(Minecraft client) {
-        if (client.player != null) {
-            client.setCameraEntity(client.player);
-        }
+        if (client.player != null) client.setCameraEntity(client.player);
         camera = null;
     }
 
