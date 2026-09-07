@@ -91,8 +91,6 @@ public final class OurClientClickGui extends Screen {
         if (c != null && settingsId.equals("aim-assist")) {
             setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange)); row += 38;
             setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
-        } else if (c != null && settingsId.equals("trigger-bot")) {
-            setting(g, x, row, w, "Attack delay", Integer.toString(c.triggerBotDelay));
         } else if (c != null && settingsId.equals("auto-schematic-builder")) {
             setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
         } else {
@@ -103,7 +101,7 @@ public final class OurClientClickGui extends Screen {
 
     private int settingsHeight() {
         if (settingsId != null && settingsId.equals("aim-assist")) return 190;
-        if (settingsId != null && (settingsId.equals("trigger-bot") || settingsId.equals("auto-schematic-builder"))) return 155;
+        if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
         return 130;
     }
 
@@ -117,7 +115,7 @@ public final class OurClientClickGui extends Screen {
         List<ClientModule> result = new ArrayList<>();
         for (ClientModule module : OurClient.modules().all()) {
             int cat = switch (module.id()) {
-                case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
+                case "aim-assist" -> 0;
                 case "tracers", "esp" -> 1;
                 case "freecam" -> 2;
                 case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
@@ -150,8 +148,7 @@ public final class OurClientClickGui extends Screen {
         if (settingsId.equals("aim-assist")) {
             if (inside(mx, my, x, row, w, 30)) { editingSetting = "range"; return true; }
             if (inside(mx, my, x, row + 38, w, 30)) { editingSetting = "smoothness"; return true; }
-        } else if (settingsId.equals("trigger-bot") && inside(mx, my, x, row, w, 30)) editingSetting = "trigger-delay";
-        else if (settingsId.equals("auto-schematic-builder") && inside(mx, my, x, row, w, 30)) editingSetting = "placements";
+        } else if (settingsId.equals("auto-schematic-builder") && inside(mx, my, x, row, w, 30)) editingSetting = "placements";
         return true;
     }
 
@@ -163,10 +160,8 @@ public final class OurClientClickGui extends Screen {
             case "range" -> c.aimRange = Math.max(1f, Math.min(64f, c.aimRange + direction));
             case "smoothness" -> c.aimSmoothing = Math.max(.01f, Math.min(1f, c.aimSmoothing + direction * .01f));
             case "placements" -> c.schematicPlacementsPerTick = Math.max(1, Math.min(20, c.schematicPlacementsPerTick + direction));
-            case "trigger-delay" -> c.triggerBotDelay = Math.max(1, Math.min(20, c.triggerBotDelay + direction));
             default -> { return; }
         }
-        if (OurClient.modules().get("trigger-bot") instanceof TriggerBotModule trigger) trigger.setAttackDelay(c.triggerBotDelay);
         OurClient.syncAndSaveConfigFromModules();
     }
 
