@@ -117,12 +117,18 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (slot < 0) return false;
         client.player.getInventory().setSelectedSlot(slot);
 
-        Direction[] directions = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST, Direction.UP};
-        for (Direction face : directions) {
-            BlockPos support = target.relative(face.getOpposite());
+        // Each direction describes where the supporting block is relative to the target.
+        // The interaction face is therefore the opposite face on that support block.
+        Direction[] supportDirections = {
+                Direction.DOWN, Direction.NORTH, Direction.SOUTH,
+                Direction.WEST, Direction.EAST, Direction.UP
+        };
+        for (Direction supportDirection : supportDirections) {
+            BlockPos support = target.relative(supportDirection);
             BlockState supportState = client.level.getBlockState(support);
             if (!supportState.isSolidRender()) continue;
 
+            Direction face = supportDirection.getOpposite();
             Vec3 hit = Vec3.atCenterOf(support).add(
                     face.getStepX() * 0.49,
                     face.getStepY() * 0.49,
