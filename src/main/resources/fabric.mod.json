@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "our-client1",
   "version": "${version}",
-  "name": "Our Client",
+  "name": "Arson Client",
   "description": "A client-side Fabric utility client.",
   "authors": ["peli1gamer"],
   "environment": "client",
