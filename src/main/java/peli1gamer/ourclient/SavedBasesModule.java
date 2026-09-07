@@ -61,8 +61,14 @@ public final class SavedBasesModule implements ToggleableModule {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Dimension identifier is too long."), true);
             return;
         }
-        bases.put(normalizedName, new SavedBase(dimension, pos.getX(), pos.getY(), pos.getZ()));
-        save(client);
+
+        SavedBase previous = bases.put(normalizedName, new SavedBase(dimension, pos.getX(), pos.getY(), pos.getZ()));
+        if (!save(client)) {
+            if (previous == null) bases.remove(normalizedName);
+            else bases.put(normalizedName, previous);
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Could not save base to disk."), true);
+            return;
+        }
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Saved base: " + normalizedName), true);
     }
 
@@ -72,7 +78,7 @@ public final class SavedBasesModule implements ToggleableModule {
         return client.gameDirectory.toPath().resolve("config/our-client1-bases.json");
     }
 
-    private void save(Minecraft client) {
+    private boolean save(Minecraft client) {
         Path path = path(client);
         Path temp = null;
         try {
@@ -86,6 +92,7 @@ public final class SavedBasesModule implements ToggleableModule {
             } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
                 Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING);
             }
+            return true;
         } catch (IOException exception) {
             OurClient.LOGGER.warn("Could not save saved bases to {}", path, exception);
             if (temp != null) {
@@ -95,6 +102,7 @@ public final class SavedBasesModule implements ToggleableModule {
                     OurClient.LOGGER.debug("Could not clean up temporary bases file {}", temp, cleanupException);
                 }
             }
+            return false;
         }
     }
 
