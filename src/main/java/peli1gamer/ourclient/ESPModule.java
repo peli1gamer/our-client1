@@ -49,14 +49,10 @@ public final class ESPModule implements ToggleableModule {
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
 
-            // WorldRenderContext's pose stack is already camera-relative. Do not
-            // subtract the camera position a second time (that produces invalid
-            // coordinates with the modern 1.21.11 render pipeline).
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                AABB box = target.getBoundingBox();
-                emitBox(pose, buffer, box);
+                emitBox(pose, buffer, target.getBoundingBox());
             }
         } catch (RuntimeException exception) {
             disableAfterRenderFailure("ESP", exception);
@@ -90,9 +86,11 @@ public final class ESPModule implements ToggleableModule {
                              float x1, float y1, float z1, float x2, float y2, float z2) {
         consumer.addVertex(pose, x1, y1, z1)
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                .setLineWidth(1.5f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
         consumer.addVertex(pose, x2, y2, z2)
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                .setLineWidth(1.5f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
 }
