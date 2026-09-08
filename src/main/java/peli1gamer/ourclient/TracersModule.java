@@ -52,7 +52,7 @@ public final class TracersModule implements ToggleableModule {
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
-                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
+                if (camera.distanceToSqr(target.position()) > maxRangeSquared) continue;
                 vertex(pose, buffer,
                         (float) (mc.player.getX() - camera.x),
                         (float) (mc.player.getEyeY() - camera.y),
