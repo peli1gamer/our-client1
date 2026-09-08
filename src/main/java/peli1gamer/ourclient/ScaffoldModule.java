@@ -42,8 +42,15 @@ public final class ScaffoldModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.level == null || client.gameMode == null
-                || client.screen != null || !client.player.isAlive()) return;
+        if (!enabled) return;
+        if (client.player == null || client.level == null || client.gameMode == null || client.screen != null) {
+            restoreSelectedSlot(client);
+            return;
+        }
+        if (!client.player.isAlive()) {
+            restoreSelectedSlot(client);
+            return;
+        }
 
         if (activePlayer != client.player) {
             // Never restore the old player's hotbar state into a new player.
