@@ -80,7 +80,7 @@ public final class OurClientClickGui extends Screen {
         ClientModule module = OurClient.modules().get(settingsId);
         if (module == null) { settingsId = null; return; }
         List<ModuleSettings.Entry> entries = module.settings().entries();
-        int h = 105 + Math.max(1, entries.size()) * 38;
+        int h = settingsHeight();
         int w = Math.min(430, width - 36);
         int x = (width - w) / 2, y = (height - h) / 2;
         g.fill(x, y, x + w, y + h, 0xF2181822);
@@ -94,8 +94,7 @@ public final class OurClientClickGui extends Screen {
             setting(g, x, row, w, entry.label(), entry.value().get());
             row += 38;
         }
-        if (!(module instanceof ToggleableModule) && entries.isEmpty())
-            g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
+        if (!(module instanceof ToggleableModule) && entries.isEmpty()) g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
         g.drawString(font, "Click a value, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
     }
 
@@ -167,11 +166,7 @@ public final class OurClientClickGui extends Screen {
         ClientModule module = settingsId == null ? null : OurClient.modules().get(settingsId);
         if (module == null || editingSetting == null) return;
         for (ModuleSettings.Entry entry : module.settings().entries()) {
-            if (entry.id().equals(editingSetting)) {
-                if (direction > 0) entry.increment().run(); else entry.decrement().run();
-                OurClient.syncAndSaveConfigFromModules();
-                return;
-            }
+            if (entry.id().equals(editingSetting)) { if (direction > 0) entry.increment().run(); else entry.decrement().run(); OurClient.syncAndSaveConfigFromModules(); return; }
         }
     }
 
