@@ -10,9 +10,6 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** Lightweight player tracers using Fabric's supported world consumer path. */
 public final class TracersModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
@@ -49,25 +46,21 @@ public final class TracersModule implements ToggleableModule {
         try {
             Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
-            List<TracerLine> lines = new ArrayList<>();
+            MultiBufferSource consumers = context.consumers();
+            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+            PoseStack.Pose pose = context.matrices().last();
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                lines.add(new TracerLine(
-                        (float) (target.getX() - camera.x),
-                        (float) (target.getEyeY() - camera.y),
-                        (float) (target.getZ() - camera.z)));
-            }
 
-            if (lines.isEmpty()) return;
-
-            MultiBufferSource consumers = context.consumers();
-            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
-            PoseStack.Pose pose = context.matrices().last();
-            for (TracerLine line : lines) {
+                // The pose stack is camera-relative, so convert the target into
+                // that same coordinate space exactly once.
+                float x = (float) (target.getX() - camera.x);
+                float y = (float) (target.getEyeY() - camera.y);
+                float z = (float) (target.getZ() - camera.z);
                 vertex(pose, buffer, 0, 0, 0);
-                vertex(pose, buffer, line.x(), line.y(), line.z());
+                vertex(pose, buffer, x, y, z);
             }
         } catch (RuntimeException exception) {
             enabled = false;
@@ -83,6 +76,4 @@ public final class TracersModule implements ToggleableModule {
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
-
-    private record TracerLine(float x, float y, float z) {}
 }
