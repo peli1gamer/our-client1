@@ -88,7 +88,14 @@ public final class XrayModule implements ToggleableModule {
             setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a scan failure", exception);
             ClientConfig config = OurClient.config();
-            if (config != null) config.xray = false;
+            if (config != null) {
+                config.xray = false;
+                try {
+                    OurClient.syncAndSaveConfigFromModules();
+                } catch (RuntimeException saveException) {
+                    OurClient.LOGGER.error("Failed to persist Xray scan-failure state", saveException);
+                }
+            }
         }
     }
 
@@ -136,7 +143,14 @@ public final class XrayModule implements ToggleableModule {
             setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a render failure", exception);
             ClientConfig config = OurClient.config();
-            if (config != null) config.xray = false;
+            if (config != null) {
+                config.xray = false;
+                try {
+                    OurClient.syncAndSaveConfigFromModules();
+                } catch (RuntimeException saveException) {
+                    OurClient.LOGGER.error("Failed to persist Xray render-failure state", saveException);
+                }
+            }
         }
     }
 
