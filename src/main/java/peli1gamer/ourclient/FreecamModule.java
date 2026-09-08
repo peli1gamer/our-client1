@@ -2,7 +2,7 @@ package peli1gamer.ourclient;
 
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.ClientInput;
+import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -104,8 +104,8 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         freezePlayerInput(player);
-        // Movement is handled once per rendered frame below, using the renderer's
-        // dynamic delta so speed stays consistent across different FPS values.
+        // Movement is handled once per rendered frame using the renderer's
+        // dynamic delta, so speed stays consistent across different FPS values.
     }
 
     private void enter(Minecraft client) {
