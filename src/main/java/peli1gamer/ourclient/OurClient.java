@@ -3,8 +3,13 @@ package peli1gamer.ourclient;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +29,7 @@ public final class OurClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         if (initialized) return;
+
         Minecraft client = Minecraft.getInstance();
         config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
@@ -41,6 +47,25 @@ public final class OurClient implements ClientModInitializer {
         registerKey("toggle_scaffold", GLFW.GLFW_KEY_G);
         registerKey("save_base", GLFW.GLFW_KEY_V);
         registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT);
+
+        // Add a safe, native button to the vanilla title screen. Fabric's screen
+        // event runs after vanilla has finished constructing its widgets, so this
+        // does not require a mixin into TitleScreen and survives screen resizing.
+        ScreenEvents.AFTER_INIT.register((minecraft, screen, scaledWidth, scaledHeight) -> {
+            if (!(screen instanceof TitleScreen)) return;
+            try {
+                int width = 120;
+                int x = scaledWidth - width - 10;
+                int y = scaledHeight - 32;
+                Screens.getButtons(screen).add(
+                        Button.builder(Component.literal("Arson Client"), button -> minecraft.setScreen(new OurClientClickGui()))
+                                .bounds(x, y, width, 20)
+                                .build()
+                );
+            } catch (RuntimeException exception) {
+                LOGGER.error("Could not add Arson Client button to title screen", exception);
+            }
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(tickClient -> {
             handleKeybinds(tickClient);
@@ -78,7 +103,9 @@ public final class OurClient implements ClientModInitializer {
         }
     }
 
-    private static void discardPendingKeybinds() { for (KeyMapping mapping : KEYBINDS.values()) while (mapping.consumeClick()) { } }
+    private static void discardPendingKeybinds() {
+        for (KeyMapping mapping : KEYBINDS.values()) while (mapping.consumeClick()) { }
+    }
 
     private static void toggle(String id) {
         ClientModule module = MODULES.get(id);
