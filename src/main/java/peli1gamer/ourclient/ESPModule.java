@@ -46,7 +46,7 @@ public final class ESPModule implements ToggleableModule {
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition();
+            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
