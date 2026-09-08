@@ -5,6 +5,8 @@ import net.minecraft.client.player.LocalPlayer;
 
 /** Increases vertical movement while using vanilla climbable blocks. */
 public final class FastClimbModule implements ToggleableModule {
+    private static final double MAX_CLIMB_SPEED = 0.2873D;
+
     private boolean enabled;
     private double multiplier = 1.5D;
 
@@ -18,14 +20,15 @@ public final class FastClimbModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        if (!enabled || client.player == null || client.level == null || client.screen != null) return;
+
         LocalPlayer player = client.player;
-        if (!player.onClimbable()) return;
+        if (!player.isAlive() || !player.onClimbable()) return;
 
         var velocity = player.getDeltaMovement();
         double y = velocity.y;
-        if (y > 0.0D) y = Math.min(0.2873D, y * multiplier);
-        else if (y < 0.0D) y = Math.max(-0.2873D, y * multiplier);
+        if (y > 0.0D) y = Math.min(MAX_CLIMB_SPEED, y * multiplier);
+        else if (y < 0.0D) y = Math.max(-MAX_CLIMB_SPEED, y * multiplier);
         if (y != velocity.y) player.setDeltaMovement(velocity.x, y, velocity.z);
     }
 
@@ -34,7 +37,7 @@ public final class FastClimbModule implements ToggleableModule {
         return new ModuleSettings().number(
                 "multiplier", "Speed multiplier",
                 () -> String.format(java.util.Locale.ROOT, "%.1fx", multiplier),
-                () -> multiplier = Math.min(3.0D, multiplier + 0.1D),
-                () -> multiplier = Math.max(1.0D, multiplier - 0.1D));
+                () -> multiplier = Math.min(3.0D, Math.round((multiplier + 0.1D) * 10.0D) / 10.0D),
+                () -> multiplier = Math.max(1.0D, Math.round((multiplier - 0.1D) * 10.0D) / 10.0D));
     }
 }
