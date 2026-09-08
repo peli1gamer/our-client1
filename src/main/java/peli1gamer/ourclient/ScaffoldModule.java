@@ -18,6 +18,7 @@ public final class ScaffoldModule implements ToggleableModule {
     private boolean enabled;
     private int previousSlot = -1;
     private int activePlacementSlot = -1;
+    private LocalPlayer activePlayer;
 
     @Override public String id() { return "scaffold"; }
     @Override public boolean enabled() { return enabled; }
@@ -28,12 +29,14 @@ public final class ScaffoldModule implements ToggleableModule {
         this.enabled = enabled;
         Minecraft client = Minecraft.getInstance();
         if (enabled) {
+            activePlayer = client.player;
             if (client.player != null) {
                 previousSlot = client.player.getInventory().getSelectedSlot();
                 activePlacementSlot = -1;
             }
         } else {
             restoreSelectedSlot(client);
+            activePlayer = null;
         }
     }
 
@@ -41,6 +44,15 @@ public final class ScaffoldModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null
                 || client.screen != null || !client.player.isAlive()) return;
+
+        if (activePlayer != client.player) {
+            // Never restore the old player's hotbar state into a new player.
+            previousSlot = -1;
+            activePlacementSlot = -1;
+            activePlayer = client.player;
+            previousSlot = client.player.getInventory().getSelectedSlot();
+        }
+
         LocalPlayer player = client.player;
         BlockPos target = player.blockPosition().below();
         if (!client.level.getBlockState(target).canBeReplaced()) return;
@@ -96,7 +108,7 @@ public final class ScaffoldModule implements ToggleableModule {
     }
 
     private void restoreSelectedSlot(Minecraft client) {
-        if (client.player != null && previousSlot >= 0 && previousSlot < 9) {
+        if (client.player != null && activePlayer == client.player && previousSlot >= 0 && previousSlot < 9) {
             int selected = client.player.getInventory().getSelectedSlot();
             if (activePlacementSlot < 0 || selected == activePlacementSlot) {
                 client.player.getInventory().setSelectedSlot(previousSlot);
