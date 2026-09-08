@@ -127,7 +127,7 @@ public final class OurClientClickGui extends Screen {
         return switch (module.id()) {
             case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
             case "tracers", "esp", "xray" -> 2;
-            case "freecam", "auto-sprint", "fast-climb" -> 1;
+            case "freecam", "auto-sprint", "fast-climb", "step", "no-fall" -> 1;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
             default -> 4;
         };
@@ -169,6 +169,7 @@ public final class OurClientClickGui extends Screen {
         for (ModuleSettings.Entry entry : module.settings().entries()) {
             if (entry.id().equals(editingSetting)) {
                 if (direction > 0) entry.increment().run(); else entry.decrement().run();
+                OurClient.syncAndSaveConfigFromModules();
                 return;
             }
         }
