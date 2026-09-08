@@ -8,18 +8,11 @@ import java.util.Map;
 
 import net.minecraft.client.Minecraft;
 
-/** Central registry and fault boundary for client modules. */
+/** Central Arson module registry, lifecycle boundary and fault isolation layer. */
 public final class ClientModuleManager {
     public enum Category {
-        COMBAT("Combat"),
-        RENDER("Render"),
-        MOVEMENT("Movement"),
-        WORLD("World"),
-        PLAYER("Player"),
-        MISC("Misc");
-
+        COMBAT("Combat"), RENDER("Render"), MOVEMENT("Movement"), WORLD("World"), PLAYER("Player"), MISC("Misc");
         private final String title;
-
         Category(String title) { this.title = title; }
         public String title() { return title; }
     }
@@ -53,48 +46,55 @@ public final class ClientModuleManager {
             register(Category.COMBAT, new TriggerBotModule(), "Attacks a living entity when it is directly under your crosshair.");
             register(Category.COMBAT, new CrystalMacroModule(), "Places and breaks end crystals from the current crosshair target.");
             register(Category.COMBAT, new AttributeSwapModule(), "Selects the strongest sword or axe in your hotbar when attacking.");
-
             register(Category.RENDER, new TracersModule(), "Draws lines from the camera to nearby players.");
             register(Category.RENDER, new ESPModule(), "Draws boxes around nearby players.");
             register(Category.RENDER, new XrayModule(), "Highlights nearby valuable ores without changing world blocks.");
-
             register(Category.MOVEMENT, new FreecamModule(), "Moves a client-side camera independently from the player.");
-
             register(Category.WORLD, new AutoSchematicBuilderModule(), "Places blocks from the configured JSON schematic file.");
             register(Category.WORLD, new SavedBasesModule(), "Saves and restores named base locations.");
             register(Category.WORLD, new ScaffoldModule(), "Places available building blocks beneath the player.");
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
-            modules.clear();
-            modules.putAll(previous);
-            categories.clear();
-            categories.putAll(previousCategories);
-            descriptions.clear();
-            descriptions.putAll(previousDescriptions);
+            modules.clear(); modules.putAll(previous);
+            categories.clear(); categories.putAll(previousCategories);
+            descriptions.clear(); descriptions.putAll(previousDescriptions);
             OurClient.LOGGER.error("Could not register all default client modules", exception);
             throw exception;
         }
     }
 
+    /** Changes module state through one lifecycle boundary used by the GUI, keybinds and config loader. */
+    public boolean setEnabled(String id, boolean enabled, Minecraft client) {
+        ClientModule module = modules.get(id);
+        if (!(module instanceof ToggleableModule toggleable) || toggleable.enabled() == enabled) return false;
+        try {
+            toggleable.setEnabled(enabled);
+            if (enabled) module.onEnable(client);
+            else module.onDisable(client);
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("Failed to {} module '{}'", enabled ? "enable" : "disable", id, exception);
+            try { toggleable.setEnabled(false); } catch (RuntimeException ignored) { }
+            return false;
+        }
+    }
+
+    public void disableAll(Minecraft client) {
+        for (String id : List.copyOf(modules.keySet())) setEnabled(id, false, client);
+    }
+
     public void tick(Minecraft client) {
         if (client == null) return;
         for (Map.Entry<String, ClientModule> entry : List.copyOf(modules.entrySet())) {
-            String id = entry.getKey();
             ClientModule module = entry.getValue();
+            if (module instanceof ToggleableModule toggleable && !toggleable.enabled()) continue;
             try {
                 module.onClientTick(client);
             } catch (RuntimeException exception) {
-                OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
-                if (module instanceof ToggleableModule toggleable) {
-                    try { toggleable.setEnabled(false); }
-                    catch (RuntimeException disableException) {
-                        OurClient.LOGGER.error("Could not disable failed client module '{}'", id, disableException);
-                    }
-                }
+                OurClient.LOGGER.error("Client module '{}' failed during tick", entry.getKey(), exception);
+                if (module instanceof ToggleableModule) setEnabled(entry.getKey(), false, client);
                 try { OurClient.syncAndSaveConfigFromModules(); }
-                catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException);
-                }
+                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed module state", saveException); }
             }
         }
     }
@@ -103,9 +103,7 @@ public final class ClientModuleManager {
     public Collection<ClientModule> all() { return List.copyOf(modules.values()); }
     public Category categoryOf(String id) { return categories.getOrDefault(id, Category.MISC); }
     public String descriptionOf(String id) { return descriptions.getOrDefault(id, "No description available."); }
-    public List<ClientModule> inCategory(Category category) {
-        return modules.values().stream().filter(module -> categoryOf(module.id()) == category).toList();
-    }
+    public List<ClientModule> inCategory(Category category) { return modules.values().stream().filter(m -> categoryOf(m.id()) == category).toList(); }
     public Map<Category, Integer> counts() {
         Map<Category, Integer> result = new EnumMap<>(Category.class);
         for (Category category : Category.values()) result.put(category, 0);
