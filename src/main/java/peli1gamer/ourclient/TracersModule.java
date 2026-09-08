@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 
 /** Lightweight player tracers using Fabric's supported world consumer path. */
 public final class TracersModule implements ToggleableModule {
@@ -44,23 +43,19 @@ public final class TracersModule implements ToggleableModule {
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
 
+            // The world render pose is already translated by the active camera.
+            // Supply world-space coordinates and let the pose perform the camera transform.
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
 
-                // The pose stack is camera-relative, so convert the target into
-                // that same coordinate space exactly once.
-                float x = (float) (target.getX() - camera.x);
-                float y = (float) (target.getEyeY() - camera.y);
-                float z = (float) (target.getZ() - camera.z);
-                vertex(pose, buffer, 0, 0, 0);
-                vertex(pose, buffer, x, y, z);
+                vertex(pose, buffer, (float) mc.player.getX(), (float) mc.player.getEyeY(), (float) mc.player.getZ());
+                vertex(pose, buffer, (float) target.getX(), (float) target.getEyeY(), (float) target.getZ());
             }
         } catch (RuntimeException exception) {
             enabled = false;
