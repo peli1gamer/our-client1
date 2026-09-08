@@ -30,7 +30,7 @@ public final class StepModule implements ToggleableModule {
     private void apply(Minecraft client) {
         float target = enabled ? height : VANILLA_STEP_HEIGHT;
         try {
-            Field field = findStepHeightField(client.player.getClass());
+            Field field = findStepHeightField(client.player);
             if (field != null) {
                 field.setAccessible(true);
                 field.setFloat(client.player, target);
@@ -40,10 +40,11 @@ public final class StepModule implements ToggleableModule {
         }
     }
 
-    private static Field findStepHeightField(Class<?> type) throws IllegalAccessException {
+    private static Field findStepHeightField(Object entity) throws ReflectiveOperationException {
+        Class<?> type = entity.getClass();
         float current = Float.NaN;
         try {
-            current = ((Number) type.getMethod("getStepHeight").invoke(null)).floatValue();
+            current = ((Number) type.getMethod("getStepHeight").invoke(entity)).floatValue();
         } catch (ReflectiveOperationException ignored) {
             // Fall through to field-name/type discovery.
         }
@@ -58,8 +59,8 @@ public final class StepModule implements ToggleableModule {
                 if (!Float.isNaN(current)) {
                     try {
                         field.setAccessible(true);
-                        if (Math.abs(field.getFloat(type.cast(null)) - current) < 0.0001f) return field;
-                    } catch (RuntimeException ignored) {
+                        if (Math.abs(field.getFloat(entity) - current) < 0.0001f) return field;
+                    } catch (IllegalAccessException | RuntimeException ignored) {
                         // Continue scanning fields.
                     }
                 }
