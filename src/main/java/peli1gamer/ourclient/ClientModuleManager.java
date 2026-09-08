@@ -23,24 +23,22 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
-            // Combat
+            // Existing implemented modules.
             register(new AimAssistModule());
             register(new TriggerBotModule());
             register(new CrystalMacroModule());
             register(new AttributeSwapModule());
-
-            // Visual
             register(new TracersModule());
             register(new ESPModule());
             register(new XrayModule());
-
-            // Movement
             register(new FreecamModule());
-
-            // World
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
             register(new ScaffoldModule());
+
+            // Expanded non-combat catalog. These are registered independently so
+            // unfinished behavior cannot destabilize the already working modules.
+            registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
             modules.clear();
@@ -48,6 +46,38 @@ public final class ClientModuleManager {
             OurClient.LOGGER.error("Could not register all default client modules", exception);
             throw exception;
         }
+    }
+
+    private void registerCatalog() {
+        String[] movement = {
+            "sprint", "auto-sprint", "speed", "step", "long-jump", "bunny-hop",
+            "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "high-jump", "safe-walk"
+        };
+        String[] render = {
+            "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp",
+            "fullbright", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators"
+        };
+        String[] world = {
+            "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower",
+            "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact"
+        };
+        String[] player = {
+            "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop",
+            "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move"
+        };
+        String[] utility = {
+            "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter",
+            "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer"
+        };
+        addCatalog(movement, CatalogModule.Category.MOVEMENT);
+        addCatalog(render, CatalogModule.Category.RENDER);
+        addCatalog(world, CatalogModule.Category.WORLD);
+        addCatalog(player, CatalogModule.Category.PLAYER);
+        addCatalog(utility, CatalogModule.Category.UTILITY);
+    }
+
+    private void addCatalog(String[] ids, CatalogModule.Category category) {
+        for (String id : ids) register(new CatalogModule(id, category));
     }
 
     public void tick(Minecraft client) {
