@@ -27,7 +27,7 @@ public final class AutoWalkModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft client) {
         if (!enabled) return;
-        if (client.player == null || client.screen != null) {
+        if (client.player == null || !client.player.isAlive() || client.screen != null) {
             restoreForward(client);
             return;
         }
