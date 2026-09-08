@@ -65,7 +65,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null
                 || client.screen != null) return;
         if (!client.player.isAlive()) return;
-        if (previousSelectedSlot < 0 && activePlacementSlot < 0) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
         if (!loaded) loadSchematic(client);
         if (schematic == null) return;
 
@@ -178,11 +177,11 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private void loadSchematic(Minecraft client) {
-        loaded = true;
         Path directory = client.gameDirectory.toPath().resolve("config/our-client1/schematics");
         Path file = directory.resolve(requestedFile).normalize();
         if (!file.getParent().equals(directory) || Files.isSymbolicLink(file)) {
             schematic = null;
+            loaded = false;
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Invalid schematic path."), true);
             return;
         }
@@ -192,6 +191,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n",
                         StandardOpenOption.CREATE_NEW);
                 schematic = null;
+                loaded = false;
                 client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                         "Created empty schematic at config/our-client1/schematics/" + requestedFile
                                 + ". Add blocks before enabling the builder."), true);
@@ -205,13 +205,16 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Schematic parsed = Schematic.parse(json, requestedFile);
             if (parsed.blocks().isEmpty()) {
                 schematic = null;
+                loaded = false;
                 client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                         "Schematic is empty. Add at least one block before enabling the builder."), true);
                 return;
             }
             schematic = parsed;
+            loaded = true;
         } catch (IOException | RuntimeException exception) {
             schematic = null;
+            loaded = false;
             String message = exception.getMessage();
             if (message == null || message.isBlank()) message = "Invalid schematic format";
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
@@ -237,8 +240,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (activePlacementSlot < 0) {
             previousSelectedSlot = currentSlot;
         } else if (currentSlot != activePlacementSlot) {
-            // The user changed slots while the builder owned the temporary selection.
-            // Respect the new choice and establish a new ownership boundary.
             previousSelectedSlot = currentSlot;
         }
         if (currentSlot != slot) {
