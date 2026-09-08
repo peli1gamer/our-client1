@@ -60,6 +60,10 @@ public final class FreecamModule implements ToggleableModule {
             cleanupAfterWorldLoss(client);
             return;
         }
+        if (!client.player.isAlive()) {
+            cleanupAfterWorldLoss(client);
+            return;
+        }
         if (activePlayer != null && activePlayer != client.player) {
             cleanupAfterWorldLoss(client);
             return;
@@ -95,7 +99,7 @@ public final class FreecamModule implements ToggleableModule {
 
     private void enter(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || client.screen != null) {
+        if (player == null || client.level == null || client.screen != null || !player.isAlive()) {
             enabled = false;
             return;
         }
