@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.client.Minecraft;
+import peli1gamer.ourclient.meteor.MeteorAirJumpModule;
+import peli1gamer.ourclient.meteor.MeteorAutoJumpModule;
+import peli1gamer.ourclient.meteor.MeteorAutoWalkModule;
+import peli1gamer.ourclient.meteor.MeteorFullbrightModule;
 
 /** Central Arson module registry, lifecycle boundary and fault isolation layer. */
 public final class ClientModuleManager {
@@ -46,10 +50,17 @@ public final class ClientModuleManager {
             register(Category.COMBAT, new TriggerBotModule(), "Attacks a living entity when it is directly under your crosshair.");
             register(Category.COMBAT, new CrystalMacroModule(), "Places and breaks end crystals from the current crosshair target.");
             register(Category.COMBAT, new AttributeSwapModule(), "Selects the strongest sword or axe in your hotbar when attacking.");
+
             register(Category.RENDER, new TracersModule(), "Draws lines from the camera to nearby players.");
             register(Category.RENDER, new ESPModule(), "Draws boxes around nearby players.");
             register(Category.RENDER, new XrayModule(), "Highlights nearby valuable ores without changing world blocks.");
+            register(Category.RENDER, new MeteorFullbrightModule(), "Lights up dark areas using the client's gamma setting.");
+
             register(Category.MOVEMENT, new FreecamModule(), "Moves a client-side camera independently from the player.");
+            register(Category.MOVEMENT, new MeteorAutoWalkModule(), "Automatically holds a movement direction.");
+            register(Category.MOVEMENT, new MeteorAutoJumpModule(), "Automatically jumps while the player is moving.");
+            register(Category.MOVEMENT, new MeteorAirJumpModule(), "Allows jumping while airborne.");
+
             register(Category.WORLD, new AutoSchematicBuilderModule(), "Places blocks from the configured JSON schematic file.");
             register(Category.WORLD, new SavedBasesModule(), "Saves and restores named base locations.");
             register(Category.WORLD, new ScaffoldModule(), "Places available building blocks beneath the player.");
@@ -69,8 +80,6 @@ public final class ClientModuleManager {
         if (!(module instanceof ToggleableModule toggleable) || toggleable.enabled() == enabled) return false;
         try {
             toggleable.setEnabled(enabled);
-            if (enabled) module.onEnable(client);
-            else module.onDisable(client);
             return true;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to {} module '{}'", enabled ? "enable" : "disable", id, exception);
