@@ -40,6 +40,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int noProgressTicks;
     private int retryCooldown;
     private int previousSelectedSlot = -1;
+    private int activePlacementSlot = -1;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -51,7 +52,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         this.enabled = enabled;
         if (enabled) {
             Minecraft client = Minecraft.getInstance();
-            if (client.player != null) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
+            previousSelectedSlot = client.player == null ? -1 : client.player.getInventory().getSelectedSlot();
+            activePlacementSlot = -1;
         } else {
             restoreSelectedSlot();
             resetProgress();
@@ -63,7 +65,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null
                 || client.screen != null) return;
         if (!client.player.isAlive()) return;
-        if (previousSelectedSlot < 0) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
+        if (previousSelectedSlot < 0 && activePlacementSlot < 0) previousSelectedSlot = client.player.getInventory().getSelectedSlot();
         if (!loaded) loadSchematic(client);
         if (schematic == null) return;
 
@@ -231,7 +233,18 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (!client.level.isInWorldBounds(target)) return false;
         int slot = findBlockSlot(client.player, wanted.getBlock());
         if (slot < 0) return false;
-        client.player.getInventory().setSelectedSlot(slot);
+        int currentSlot = client.player.getInventory().getSelectedSlot();
+        if (activePlacementSlot < 0) {
+            previousSelectedSlot = currentSlot;
+        } else if (currentSlot != activePlacementSlot) {
+            // The user changed slots while the builder owned the temporary selection.
+            // Respect the new choice and establish a new ownership boundary.
+            previousSelectedSlot = currentSlot;
+        }
+        if (currentSlot != slot) {
+            client.player.getInventory().setSelectedSlot(slot);
+        }
+        activePlacementSlot = slot;
 
         double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
         Vec3 eye = client.player.getEyePosition();
@@ -265,10 +278,13 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private void restoreSelectedSlot() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player != null && previousSelectedSlot >= 0 && previousSelectedSlot < 9) {
+        if (client.player != null && previousSelectedSlot >= 0 && previousSelectedSlot < 9
+                && activePlacementSlot >= 0
+                && client.player.getInventory().getSelectedSlot() == activePlacementSlot) {
             client.player.getInventory().setSelectedSlot(previousSelectedSlot);
         }
         previousSelectedSlot = -1;
+        activePlacementSlot = -1;
     }
 
     private void sortBlocks() {
