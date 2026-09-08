@@ -1,25 +1,26 @@
 package peli1gamer.ourclient;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Simple keyboard/mouse friendly module browser with category navigation. */
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
+
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+
 public final class OurClientClickGui extends Screen {
+    private static final int BG = 0xF20B0B10;
+    private static final int PANEL = 0xF2181822;
+    private static final int ROW = 0xFF20202C;
+    private static final int HOVER = 0xFF2A2A38;
+    private static final int SELECTED = 0xFF333344;
     private static final int ACCENT = 0xFFFF6A00;
-    private static final int BG = 0xE8101118;
-    private static final int PANEL = 0xE51A1B25;
-    private static final int ROW = 0xA0252632;
-    private static final int SELECTED = 0xFFB83A00;
-    private static final int HOVER = 0xA0443024;
     private static final int TEXT = 0xFFECE8F5;
     private static final int MUTED = 0xFFAAA5B7;
 
@@ -32,6 +33,9 @@ public final class OurClientClickGui extends Screen {
     private String editingSetting;
 
     public OurClientClickGui() { super(Component.literal("Arson Client")); }
+
+    @Override
+    protected void init() { setInitialFocus(null); }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
@@ -58,21 +62,15 @@ public final class OurClientClickGui extends Screen {
         g.drawString(font, searchText + (editingSearch ? "_" : ""), contentX + 24, searchY + 10, search.isEmpty() ? MUTED : TEXT, false);
         List<ClientModule> modules = modulesForCategory();
         if (modules.isEmpty()) g.drawString(font, "No matching modules", contentX + 24, searchY + 55, MUTED, false);
-        else {
-            selectedIndex = Math.max(0, Math.min(selectedIndex, modules.size() - 1));
-            for (int i = 0; i < modules.size(); i++) {
-                int y = searchY + 42 + i * 34;
-                ClientModule module = modules.get(i);
-                boolean active = module instanceof ToggleableModule t && t.enabled();
-                boolean selected = i == selectedIndex;
-                boolean hover = inside(mouseX, mouseY, contentX + 14, y, contentW - 28, 30);
-                g.fill(contentX + 14, y, contentX + contentW - 14, y + 30, selected ? (active ? SELECTED : HOVER) : (active ? SELECTED : ROW));
-                g.drawString(font, pretty(module.id()), contentX + 24, y + 10, TEXT, false);
-                g.drawString(font, active ? "ON" : "OFF", contentX + contentW - 58, y + 10, active ? TEXT : MUTED, false);
-                if (selected) g.fill(contentX + 14, y, contentX + 17, y + 30, ACCENT);
-            }
+        for (int i = 0; i < modules.size(); i++) {
+            int y = searchY + 42 + i * 34;
+            ClientModule module = modules.get(i);
+            boolean active = module instanceof ToggleableModule t && t.enabled();
+            boolean selected = i == selectedIndex;
+            g.fill(contentX + 14, y, contentX + contentW - 14, y + 30, selected ? SELECTED : ROW);
+            g.drawString(font, pretty(module.id()), contentX + 24, y + 9, TEXT, false);
+            g.drawString(font, active ? "ON" : "OFF", contentX + contentW - 50, y + 9, active ? ACCENT : MUTED, false);
         }
-        g.drawString(font, "RIGHT SHIFT = GUI   |   ESC = close", contentX + 18, height - 32, MUTED, false);
         if (settingsId != null) renderSettings(g);
     }
 
@@ -124,8 +122,8 @@ public final class OurClientClickGui extends Screen {
         if (module instanceof CatalogModule catalog) return catalog.category().ordinal();
         return switch (module.id()) {
             case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
-            case "tracers", "esp", "xray" -> 2;
-            case "freecam" -> 1;
+            case "auto-walk", "auto-jump", "air-jump", "sprint", "freecam" -> 1;
+            case "tracers", "esp", "xray", "fullbright" -> 2;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
             default -> 4;
         };
