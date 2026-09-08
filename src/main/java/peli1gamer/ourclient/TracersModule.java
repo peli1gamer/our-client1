@@ -45,7 +45,7 @@ public final class TracersModule implements ToggleableModule {
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition(context.tickCounter().getTickProgress(false));
+            Vec3 camera = mc.getCameraEntity().getPosition();
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
