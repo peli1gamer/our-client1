@@ -1,7 +1,8 @@
 package peli1gamer.ourclient;
 
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.ClientInput;
+import net.minecraft.client.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -10,6 +11,8 @@ import net.minecraft.world.entity.item.ItemEntity;
 public final class FreecamModule implements ToggleableModule {
     private static final double BASE_SPEED = 0.55D;
     private static final double SPRINT_MULTIPLIER = 3.0D;
+    private static boolean renderHookInstalled;
+    private static FreecamModule activeInstance;
 
     private boolean enabled;
     private ItemEntity camera;
@@ -18,6 +21,8 @@ public final class FreecamModule implements ToggleableModule {
     private LocalPlayer inputOwner;
     private float lockedPlayerYaw;
     private float lockedPlayerPitch;
+
+    public FreecamModule() { installRenderHook(); }
 
     @Override public String id() { return "freecam"; }
     @Override public boolean enabled() { return enabled; }
@@ -30,18 +35,41 @@ public final class FreecamModule implements ToggleableModule {
         if (enabled) {
             try {
                 enter(client);
+                if (this.enabled) activeInstance = this;
             } catch (RuntimeException exception) {
                 this.enabled = false;
                 restoreInput(client);
                 restoreCamera(client);
                 camera = null;
                 previousCamera = null;
+                if (activeInstance == this) activeInstance = null;
                 OurClient.LOGGER.error("Could not enable freecam; state was rolled back", exception);
                 syncDisabledConfig();
             }
         } else {
             exit(client);
         }
+    }
+
+    private static void installRenderHook() {
+        if (renderHookInstalled) return;
+        renderHookInstalled = true;
+        WorldRenderEvents.START_MAIN.register(context -> {
+            FreecamModule instance = activeInstance;
+            if (instance == null || !instance.enabled) return;
+            try {
+                instance.updateMovement(Minecraft.getInstance(), context.tickCounter().getDynamicDeltaTicks());
+            } catch (RuntimeException exception) {
+                instance.enabled = false;
+                if (activeInstance == instance) activeInstance = null;
+                instance.restoreInput(Minecraft.getInstance());
+                instance.restoreCamera(Minecraft.getInstance());
+                instance.camera = null;
+                instance.previousCamera = null;
+                OurClient.LOGGER.error("Disabling freecam after a render-frame movement failure", exception);
+                instance.syncDisabledConfig();
+            }
+        });
     }
 
     @Override
@@ -76,10 +104,8 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         freezePlayerInput(player);
-        updateMovement(client);
-        // Keep xo/yo/zo untouched. Minecraft uses the previous transform for
-        // render interpolation; overwriting it every tick causes visible 20 Hz
-        // snapping and makes the camera feel choppy.
+        // Movement is handled once per rendered frame below, using the renderer's
+        // dynamic delta so speed stays consistent across different FPS values.
     }
 
     private void enter(Minecraft client) {
@@ -106,6 +132,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void exit(Minecraft client) {
+        if (activeInstance == this) activeInstance = null;
         restoreInput(client);
         restoreCamera(client);
         camera = null;
@@ -113,6 +140,7 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void cleanupAfterWorldLoss(Minecraft client) {
+        if (activeInstance == this) activeInstance = null;
         restoreInput(client);
         restoreCamera(client);
         enabled = false;
@@ -158,8 +186,8 @@ public final class FreecamModule implements ToggleableModule {
         }
     }
 
-    private void updateMovement(Minecraft client) {
-        if (camera == null) return;
+    private void updateMovement(Minecraft client, float deltaTicks) {
+        if (camera == null || client.player == null || client.level == null || client.screen != null) return;
         double forward = (client.options.keyUp.isDown() ? 1.0D : 0.0D) - (client.options.keyDown.isDown() ? 1.0D : 0.0D);
         double strafe = (client.options.keyRight.isDown() ? 1.0D : 0.0D) - (client.options.keyLeft.isDown() ? 1.0D : 0.0D);
         double vertical = (client.options.keyJump.isDown() ? 1.0D : 0.0D) - (client.options.keyShift.isDown() ? 1.0D : 0.0D);
@@ -171,7 +199,8 @@ public final class FreecamModule implements ToggleableModule {
             strafe /= length;
         }
 
-        double speed = BASE_SPEED * (client.options.keySprint.isDown() ? SPRINT_MULTIPLIER : 1.0D);
+        if (!Float.isFinite(deltaTicks) || deltaTicks <= 0.0F) return;
+        double speed = BASE_SPEED * (client.options.keySprint.isDown() ? SPRINT_MULTIPLIER : 1.0D) * deltaTicks;
         double yaw = Math.toRadians(camera.getYRot());
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
