@@ -101,7 +101,6 @@ public final class CrystalMacroModule implements ToggleableModule {
 
         mc.gameMode.attack(mc.player, entity);
         mc.player.resetAttackStrengthTicker();
-        mc.player.swing(InteractionHand.MAIN_HAND);
         breakDelay = nextBreakDelay;
         rollBreakDelay();
     }
