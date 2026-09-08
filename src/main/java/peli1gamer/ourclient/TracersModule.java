@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 
 /** Lightweight player tracers using Fabric's supported world consumer path. */
 public final class TracersModule implements ToggleableModule {
@@ -47,12 +48,19 @@ public final class TracersModule implements ToggleableModule {
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
+            Vec3 camera = mc.getCameraEntity().position();
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                vertex(pose, buffer, (float) mc.player.getX(), (float) mc.player.getEyeY(), (float) mc.player.getZ());
-                vertex(pose, buffer, (float) target.getX(), (float) target.getEyeY(), (float) target.getZ());
+                vertex(pose, buffer,
+                        (float) (mc.player.getX() - camera.x),
+                        (float) (mc.player.getEyeY() - camera.y),
+                        (float) (mc.player.getZ() - camera.z));
+                vertex(pose, buffer,
+                        (float) (target.getX() - camera.x),
+                        (float) (target.getEyeY() - camera.y),
+                        (float) (target.getZ() - camera.z));
             }
         } catch (RuntimeException exception) {
             enabled = false;
