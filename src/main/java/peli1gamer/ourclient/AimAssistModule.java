@@ -23,14 +23,10 @@ public final class AimAssistModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.screen != null) return;
         LocalPlayer player = client.player;
-        if (!player.isAlive()) {
-            target = null;
-            return;
-        }
+        if (!player.isAlive()) { target = null; return; }
 
         ClientConfig config = OurClient.config();
         if (config == null) return;
-
         double range = Math.max(1.0, config.aimRange);
         if (!isValidTarget(player, target, range)) target = findTarget(client, player, range);
         if (target == null) return;
@@ -41,13 +37,25 @@ public final class AimAssistModule implements ToggleableModule {
         double horizontal = Math.sqrt(dx * dx + dz * dz);
         float wantedYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
         float wantedPitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
-
         float smoothing = Math.max(0.01f, Math.min(1.0f, config.aimSmoothing));
         float newYaw = approachAngle(player.getYRot(), wantedYaw, smoothing);
         float newPitch = approachAngle(player.getXRot(), wantedPitch, smoothing);
         player.setYRot(newYaw);
         player.setXRot(newPitch);
         player.setYHeadRot(newYaw);
+    }
+
+    @Override
+    public ModuleSettings settings() {
+        ClientConfig c = OurClient.config();
+        if (c == null) return new ModuleSettings();
+        return new ModuleSettings()
+                .number("range", "Range", () -> String.format(java.util.Locale.ROOT, "%.1f", c.aimRange),
+                        () -> c.aimRange = Math.min(64f, c.aimRange + 1f),
+                        () -> c.aimRange = Math.max(1f, c.aimRange - 1f))
+                .number("smoothness", "Smoothness", () -> String.format(java.util.Locale.ROOT, "%.2f", c.aimSmoothing),
+                        () -> c.aimSmoothing = Math.min(1f, c.aimSmoothing + .01f),
+                        () -> c.aimSmoothing = Math.max(.01f, c.aimSmoothing - .01f));
     }
 
     private LivingEntity findTarget(Minecraft client, LocalPlayer player, double range) {
