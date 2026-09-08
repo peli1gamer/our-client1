@@ -23,7 +23,6 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
-            // Existing implemented modules.
             register(new AimAssistModule());
             register(new TriggerBotModule());
             register(new CrystalMacroModule());
@@ -35,12 +34,11 @@ public final class ClientModuleManager {
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
             register(new ScaffoldModule());
-
-            // Stable movement batch.
             register(new AutoSprintModule());
             register(new FastClimbModule());
+            register(new StepModule());
+            register(new NoFallModule());
 
-            // Expanded catalog entries remain isolated from implemented behavior.
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
@@ -53,7 +51,7 @@ public final class ClientModuleManager {
 
     private void registerCatalog() {
         String[] movement = {
-            "sprint", "speed", "step", "long-jump", "bunny-hop", "no-slow", "no-fall",
+            "sprint", "speed", "long-jump", "bunny-hop", "no-slow",
             "jesus", "spider", "flight", "high-jump", "safe-walk"
         };
         String[] render = {
