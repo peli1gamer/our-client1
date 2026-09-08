@@ -22,9 +22,12 @@ public final class ClientConfig {
     public boolean schematicBuilder;
     public boolean savedBases = true;
     public boolean scaffold;
+    public boolean step;
+    public boolean noFall;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
     public int schematicPlacementsPerTick = 1;
+    public float stepHeight = 1.0f;
 
     public static ClientConfig load(Path path) {
         try {
@@ -59,8 +62,10 @@ public final class ClientConfig {
     private void sanitize() {
         if (!Float.isFinite(aimSmoothing)) aimSmoothing = 0.18f;
         if (!Float.isFinite(aimRange)) aimRange = 12.0f;
+        if (!Float.isFinite(stepHeight)) stepHeight = 1.0f;
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
+        stepHeight = Math.max(0.6f, Math.min(2.0f, stepHeight));
     }
 }
