@@ -1,6 +1,7 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.EntityHitResult;
 
@@ -38,7 +39,7 @@ public final class TriggerBotModule implements ToggleableModule {
 
         mc.gameMode.attack(mc.player, target);
         mc.player.resetAttackStrengthTicker();
-        mc.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        mc.player.swing(InteractionHand.MAIN_HAND);
         cooldown = 1;
     }
 }
