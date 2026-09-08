@@ -12,23 +12,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Rebuilt Arson module browser with dynamic categories and settings support. */
+/**
+ * Arson's standalone ClickGUI. It borrows the usability patterns we like from modern
+ * clients, but deliberately uses its own layout, branding, colors and interactions.
+ */
 public final class OurClientClickGui extends Screen {
-    private static final int ACCENT = 0xFFFF6A00;
-    private static final int ACCENT_DARK = 0xFF9C3C00;
-    private static final int BACKGROUND = 0xF30B0D12;
-    private static final int SURFACE = 0xF5161820;
-    private static final int SURFACE_2 = 0xFF1C1F28;
-    private static final int SURFACE_3 = 0xFF232731;
+    private static final int ORANGE = 0xFFFF6A00;
+    private static final int ORANGE_BRIGHT = 0xFFFF8A24;
+    private static final int ORANGE_DARK = 0xFF9E3B00;
+    private static final int BG = 0xE807090D;
+    private static final int PANEL = 0xF20D1017;
+    private static final int CARD = 0xF4161A23;
+    private static final int CARD_HOVER = 0xFF1E232D;
+    private static final int CARD_SELECTED = 0xFF171C26;
+    private static final int BORDER = 0xFF292E39;
     private static final int TEXT = 0xFFF4F1EA;
-    private static final int MUTED = 0xFFA7A9B2;
-    private static final int ON = 0xFFFF7A1A;
-    private static final int OFF = 0xFF747984;
-    private static final int MARGIN = 14;
-    private static final int HEADER = 52;
-    private static final int SIDEBAR = 170;
-    private static final int GAP = 10;
-    private static final int CARD_HEIGHT = 62;
+    private static final int MUTED = 0xFF9297A3;
+    private static final int OFF = 0xFF707783;
+    private static final int ON = 0xFFFF7620;
+
+    private static final int SHELL_W = 1160;
+    private static final int SHELL_H = 690;
+    private static final int SIDEBAR_W = 210;
+    private static final int HEADER_H = 58;
+    private static final int GAP = 12;
+    private static final int CARD_H = 64;
 
     private final List<ClientModuleManager.Category> categories = List.of(ClientModuleManager.Category.values());
     private ClientModuleManager.Category activeCategory = ClientModuleManager.Category.COMBAT;
@@ -39,7 +47,9 @@ public final class OurClientClickGui extends Screen {
     private int selectedIndex;
     private ModuleSettings.Entry selectedSetting;
 
-    public OurClientClickGui() { super(Component.literal("Arson Client")); }
+    public OurClientClickGui() {
+        super(Component.literal("Arson Client"));
+    }
 
     @Override
     public void init() {
@@ -57,87 +67,108 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
-        g.fill(0, 0, width, height, BACKGROUND);
-        drawHeader(g);
-        drawSidebar(g, mouseX, mouseY);
-        drawContent(g, mouseX, mouseY);
-        if (settingsId != null) drawSettings(g);
+        g.fill(0, 0, width, height, BG);
+
+        int shellW = Math.min(SHELL_W, Math.max(420, width - 32));
+        int shellH = Math.min(SHELL_H, Math.max(300, height - 32));
+        int sx = (width - shellW) / 2;
+        int sy = (height - shellH) / 2;
+
+        // Subtle orange halo and the actual client shell.
+        g.fill(sx - 3, sy - 3, sx + shellW + 3, sy + shellH + 3, 0x552A1204);
+        g.fill(sx, sy, sx + shellW, sy + shellH, PANEL);
+        g.fill(sx, sy, sx + 3, sy + shellH, ORANGE_DARK);
+
+        drawSidebar(g, sx, sy, shellH, mouseX, mouseY);
+        drawHeader(g, sx + SIDEBAR_W, sy, shellW - SIDEBAR_W, mouseX, mouseY);
+        drawContent(g, sx + SIDEBAR_W, sy + HEADER_H, shellW - SIDEBAR_W, shellH - HEADER_H, mouseX, mouseY);
+
+        if (settingsId != null) drawSettings(g, sx, sy, shellW, shellH);
     }
 
-    private void drawHeader(GuiGraphics g) {
-        g.fill(0, 0, width, HEADER, SURFACE);
-        g.fill(0, HEADER - 2, width, HEADER, ACCENT);
-        g.drawString(font, "ARSON", MARGIN, 13, ACCENT, false);
-        g.drawString(font, "CLIENT", MARGIN + font.width("ARSON") + 7, 13, TEXT, false);
-        g.drawString(font, "Modules", MARGIN, 31, MUTED, false);
-        g.drawString(font, "Right Shift", Math.max(MARGIN, width - 120), 14, TEXT, false);
-        g.drawString(font, "close", Math.max(MARGIN, width - 50), 14, MUTED, false);
-    }
+    private void drawSidebar(GuiGraphics g, int sx, int sy, int h, int mouseX, int mouseY) {
+        g.fill(sx, sy, sx + SIDEBAR_W, sy + h, 0xF90B0E14);
+        g.fill(sx + SIDEBAR_W - 1, sy, sx + SIDEBAR_W, sy + h, BORDER);
 
-    private void drawSidebar(GuiGraphics g, int mouseX, int mouseY) {
-        int x = MARGIN;
-        int y = HEADER + MARGIN;
-        int w = SIDEBAR;
-        int h = Math.max(80, height - HEADER - MARGIN * 2);
-        g.fill(x, y, x + w, y + h, SURFACE);
-        g.drawString(font, "CATEGORIES", x + 12, y + 12, MUTED, false);
-        int rowY = y + 34;
+        drawFlameMark(g, sx + 20, sy + 22);
+        g.drawString(font, "ARSON", sx + 57, sy + 23, TEXT, false);
+        g.drawString(font, "CLIENT", sx + 57, sy + 37, ORANGE_BRIGHT, false);
+        g.drawString(font, "standalone build", sx + 57, sy + 49, MUTED, false);
+        g.fill(sx + 16, sy + 67, sx + SIDEBAR_W - 16, sy + 68, BORDER);
+
+        g.drawString(font, "MODULES", sx + 18, sy + 85, MUTED, false);
+        int rowY = sy + 101;
         java.util.Map<ClientModuleManager.Category, Integer> counts = OurClient.modules().counts();
         for (ClientModuleManager.Category category : categories) {
             boolean active = category == activeCategory;
-            boolean hover = inside(mouseX, mouseY, x + 8, rowY, w - 16, 32);
-            int fill = active ? ACCENT_DARK : hover ? SURFACE_3 : SURFACE_2;
-            g.fill(x + 8, rowY, x + w - 8, rowY + 32, fill);
-            if (active) g.fill(x + 8, rowY, x + 11, rowY + 32, ACCENT);
-            g.drawString(font, category.title(), x + 18, rowY + 10, TEXT, false);
+            boolean hover = inside(mouseX, mouseY, sx + 10, rowY, SIDEBAR_W - 20, 34);
+            int fill = active ? 0xFF2A180E : hover ? CARD_HOVER : 0x00111111;
+            g.fill(sx + 10, rowY, sx + SIDEBAR_W - 10, rowY + 34, fill);
+            if (active) g.fill(sx + 10, rowY, sx + 13, rowY + 34, ORANGE);
+            drawCategoryGlyph(g, category, sx + 27, rowY + 17, active ? ORANGE : MUTED);
+            g.drawString(font, category.title(), sx + 43, rowY + 11, active ? TEXT : MUTED, false);
             String count = Integer.toString(counts.getOrDefault(category, 0));
-            g.drawString(font, count, x + w - 26 - font.width(count), rowY + 10, MUTED, false);
-            rowY += 36;
+            g.drawString(font, count, sx + SIDEBAR_W - 22 - font.width(count), rowY + 11, MUTED, false);
+            rowY += 38;
         }
-        int footerY = y + h - 38;
-        g.drawString(font, "UP / DOWN  modules", x + 12, footerY, MUTED, false);
-        g.drawString(font, "ENTER toggle   O settings", x + 12, footerY + 14, MUTED, false);
+
+        int bottom = sy + h - 68;
+        g.fill(sx + 16, bottom, sx + SIDEBAR_W - 16, bottom + 1, BORDER);
+        g.drawString(font, "GENERAL", sx + 18, bottom + 14, MUTED, false);
+        g.drawString(font, "Settings", sx + 38, bottom + 30, TEXT, false);
+        g.drawString(font, "Profiles", sx + 38, bottom + 46, TEXT, false);
+        g.drawString(font, "Arson Client", sx + 18, sy + h - 16, ORANGE_BRIGHT, false);
+        g.drawString(font, "Fire theme", sx + SIDEBAR_W - 78, sy + h - 16, MUTED, false);
     }
 
-    private void drawContent(GuiGraphics g, int mouseX, int mouseY) {
-        int x = MARGIN + SIDEBAR + GAP;
-        int y = HEADER + MARGIN;
-        int w = Math.max(140, width - x - MARGIN);
-        int h = Math.max(100, height - HEADER - MARGIN * 2);
-        g.fill(x, y, x + w, y + h, SURFACE);
-        List<ClientModule> all = filteredModules();
+    private void drawHeader(GuiGraphics g, int x, int y, int w, int mouseX, int mouseY) {
+        g.fill(x, y, x + w, y + HEADER_H, 0xF80F131B);
+        g.fill(x + 14, y + HEADER_H - 2, x + w - 14, y + HEADER_H, ORANGE);
+
+        g.drawString(font, "Hello, Arson player", x + 18, y + 17, TEXT, false);
+        g.drawString(font, activeCategory.title() + " modules", x + 18, y + 34, MUTED, false);
+
+        int searchW = Math.min(280, Math.max(140, w / 3));
+        int searchX = x + w - searchW - 18;
+        int searchY = y + 14;
+        boolean hover = inside(mouseX, mouseY, searchX, searchY, searchW, 28);
+        g.fill(searchX, searchY, searchX + searchW, searchY + 28, hover || editingSearch ? CARD_HOVER : CARD);
+        g.fill(searchX, searchY, searchX + searchW, searchY + 1, editingSearch ? ORANGE : BORDER);
+        g.drawString(font, "Search", searchX + 11, searchY + 9, search.isBlank() ? MUTED : TEXT, false);
+        if (!search.isBlank()) g.drawString(font, search, searchX + 53, searchY + 9, TEXT, false);
+        if (editingSearch) g.drawString(font, "_", searchX + 53 + font.width(search), searchY + 9, ORANGE_BRIGHT, false);
+        g.drawString(font, "RShift", searchX + searchW - 43, searchY + 9, MUTED, false);
+    }
+
+    private void drawContent(GuiGraphics g, int x, int y, int w, int h, int mouseX, int mouseY) {
+        g.fill(x, y, x + w, y + h, 0xF70A0D13);
+        List<ClientModule> modules = filteredModules();
         int activeCount = 0;
-        for (ClientModule module : all) if (module instanceof ToggleableModule t && t.enabled()) activeCount++;
-        g.drawString(font, activeCategory.title(), x + 16, y + 14, TEXT, false);
-        g.drawString(font, activeCount + " active / " + all.size() + " shown", x + 16, y + 31, MUTED, false);
+        for (ClientModule module : modules) if (module instanceof ToggleableModule t && t.enabled()) activeCount++;
 
-        int searchX = Math.max(x + 8, x + w - 220);
-        int searchY = y + 11;
-        int searchW = Math.max(80, x + w - searchX - 14);
-        g.fill(searchX, searchY, searchX + searchW, searchY + 28, SURFACE_2);
-        String searchText = search.isBlank() ? "Search..." : search;
-        g.drawString(font, searchText + (editingSearch ? "_" : ""), searchX + 10, searchY + 9,
-                search.isBlank() ? MUTED : TEXT, false);
+        g.drawString(font, activeCategory.title(), x + 18, y + 17, TEXT, false);
+        g.drawString(font, activeCount + " enabled  •  " + modules.size() + " modules", x + 18, y + 35, MUTED, false);
 
-        int listTop = y + 54;
-        int listBottom = y + h - 10;
-        if (all.isEmpty()) {
-            g.drawCenteredString(font, "No modules match your search.", x + w / 2, listTop + 40, MUTED);
+        int listTop = y + 53;
+        int listBottom = y + h - 12;
+        if (modules.isEmpty()) {
+            g.drawCenteredString(font, "No modules match your search.", x + w / 2, listTop + 45, MUTED);
             return;
         }
-        int columns = w >= 720 ? 2 : 1;
-        int cardW = Math.max(100, (w - 16 - (columns - 1) * GAP) / columns);
-        int rows = (all.size() + columns - 1) / columns;
-        int contentHeight = Math.max(0, rows * (CARD_HEIGHT + GAP) - GAP);
+
+        int columns = w >= 650 ? 2 : 1;
+        int cardW = Math.max(120, (w - 36 - (columns - 1) * GAP) / columns);
+        int rows = (modules.size() + columns - 1) / columns;
+        int contentHeight = Math.max(0, rows * (CARD_H + GAP) - GAP);
         scroll = Math.max(0, Math.min(scroll, Math.max(0, contentHeight - (listBottom - listTop))));
 
         g.enableScissor(x + 1, listTop, x + w - 1, listBottom);
-        for (int i = 0; i < all.size(); i++) {
+        for (int i = 0; i < modules.size(); i++) {
             int col = i % columns;
             int row = i / columns;
-            int cardX = x + 8 + col * (cardW + GAP);
-            int cardY = listTop + row * (CARD_HEIGHT + GAP) - scroll;
-            drawModuleCard(g, all.get(i), i, cardX, cardY, cardW, mouseX, mouseY);
+            int cardX = x + 14 + col * (cardW + GAP);
+            int cardY = listTop + row * (CARD_H + GAP) - scroll;
+            drawModuleCard(g, modules.get(i), i, cardX, cardY, cardW, mouseX, mouseY);
         }
         g.disableScissor();
     }
@@ -145,66 +176,109 @@ public final class OurClientClickGui extends Screen {
     private void drawModuleCard(GuiGraphics g, ClientModule module, int index, int x, int y, int w, int mouseX, int mouseY) {
         boolean active = module instanceof ToggleableModule t && t.enabled();
         boolean selected = index == selectedIndex;
-        boolean hover = inside(mouseX, mouseY, x, y, w, CARD_HEIGHT);
-        int fill = selected ? SURFACE_3 : hover ? 0xFF20232C : SURFACE_2;
-        g.fill(x, y, x + w, y + CARD_HEIGHT, fill);
-        g.fill(x, y, x + 4, y + CARD_HEIGHT, active ? ON : OFF);
+        boolean hover = inside(mouseX, mouseY, x, y, w, CARD_H);
+
+        int fill = selected ? CARD_SELECTED : hover ? CARD_HOVER : CARD;
+        g.fill(x, y, x + w, y + CARD_H, fill);
+        g.fill(x, y, x + w, y + 1, selected ? ORANGE : BORDER);
+        g.fill(x, y + 1, x + 3, y + CARD_H - 1, active ? ON : OFF);
+
         g.drawString(font, pretty(module.id()), x + 14, y + 11, TEXT, false);
-        String description = descriptionLine(module.id(), Math.max(60, w - 130));
+        String description = descriptionLine(module.id(), Math.max(80, w - 105));
         g.drawString(font, description, x + 14, y + 29, MUTED, false);
-        int pillW = 54;
-        if (w > 120) {
-            g.fill(x + w - pillW - 12, y + 11, x + w - 12, y + 34, active ? ACCENT_DARK : SURFACE_3);
-            g.drawCenteredString(font, active ? "ON" : "OFF", x + w - 12 - pillW / 2, y + 17, active ? TEXT : MUTED);
-            g.drawString(font, "L toggle", x + w - 78, y + 45, MUTED, false);
-            g.drawString(font, "R settings", x + w - 76, y + 53, MUTED, false);
-        }
+        g.drawString(font, "Keybind: none", x + 14, y + 47, MUTED, false);
+
+        int toggleX = x + w - 57;
+        int toggleY = y + 12;
+        g.fill(toggleX, toggleY, toggleX + 43, toggleY + 20, active ? ORANGE_DARK : 0xFF3A3F4A);
+        g.fill(toggleX + (active ? 25 : 3), toggleY + 3, toggleX + (active ? 40 : 18), toggleY + 18, active ? ORANGE_BRIGHT : 0xFF949AA6);
     }
 
-    private void drawSettings(GuiGraphics g) {
+    private void drawSettings(GuiGraphics g, int sx, int sy, int shellW, int shellH) {
         ClientModule module = OurClient.modules().get(settingsId);
-        if (module == null) { settingsId = null; return; }
-        int w = Math.min(500, Math.max(180, width - 28));
-        int h = Math.min(Math.max(140, height - 28), 360);
-        int x = (width - w) / 2;
-        int y = (height - h) / 2;
-        g.fill(0, 0, width, height, 0x66000000);
-        g.fill(x, y, x + w, y + h, SURFACE);
-        g.fill(x, y, x + w, y + 4, ACCENT);
-        g.drawString(font, pretty(module.id()), x + 16, y + 16, TEXT, false);
-        drawWrapped(g, OurClient.modules().descriptionOf(module.id()), x + 16, y + 35, w - 32, MUTED);
-        int rowY = y + 65;
-        if (module instanceof ToggleableModule toggleable) {
-            drawSettingRow(g, "Enabled", toggleable.enabled() ? "ON" : "OFF", x + 14, rowY, w - 28, false);
-            rowY += 36;
+        if (module == null) {
+            settingsId = null;
+            selectedSetting = null;
+            return;
         }
+
+        int drawerW = Math.min(470, shellW - 26);
+        int x = sx + shellW - drawerW - 13;
+        int y = sy + 13;
+        int h = shellH - 26;
+
+        g.fill(sx, sy, sx + shellW, sy + shellH, 0x66000000);
+        g.fill(x - 3, y - 3, x + drawerW + 3, y + h + 3, 0x442A1204);
+        g.fill(x, y, x + drawerW, y + h, 0xFF10141C);
+        g.fill(x, y, x + drawerW, y + 4, ORANGE);
+        g.fill(x, y + 4, x + 1, y + h, ORANGE_DARK);
+
+        g.drawString(font, pretty(module.id()), x + 18, y + 18, TEXT, false);
+        g.drawString(font, "Module settings", x + 18, y + 35, ORANGE_BRIGHT, false);
+        g.drawString(font, "ESC closes  •  LEFT/RIGHT adjusts", x + drawerW - 178, y + 19, MUTED, false);
+
+        drawWrapped(g, OurClient.modules().descriptionOf(module.id()), x + 18, y + 54, drawerW - 36, MUTED);
+
+        int rowY = y + 84;
+        if (module instanceof ToggleableModule toggleable) {
+            drawSettingRow(g, "Enabled", toggleable.enabled() ? "ON" : "OFF", x + 16, rowY, drawerW - 32, false);
+            rowY += 38;
+        }
+
         List<ModuleSettings.Entry> entries = module.settings().entries().stream().filter(ModuleSettings.Entry::visible).toList();
         if (entries.isEmpty()) {
-            g.drawString(font, "No extra settings yet.", x + 16, rowY + 10, MUTED, false);
+            g.drawString(font, "This module has no extra settings yet.", x + 18, rowY + 12, MUTED, false);
         } else {
             for (ModuleSettings.Entry entry : entries) {
-                drawSettingRow(g, entry.label(), entry.value().get(), x + 14, rowY, w - 28, entry == selectedSetting);
-                rowY += 34;
-                if (rowY > y + h - 38) break;
+                if (rowY > y + h - 55) break;
+                drawSettingRow(g, entry.label(), entry.value().get(), x + 16, rowY, drawerW - 32, entry == selectedSetting);
+                rowY += 36;
             }
         }
-        g.drawString(font, "Wheel / LEFT / RIGHT adjust selected setting", x + 16, y + h - 19, MUTED, false);
+
+        g.drawString(font, "Wheel / LEFT / RIGHT", x + 18, y + h - 30, MUTED, false);
+        g.drawString(font, "change selected value", x + 18, y + h - 17, ORANGE_BRIGHT, false);
     }
 
     private void drawSettingRow(GuiGraphics g, String label, String value, int x, int y, int w, boolean selected) {
-        g.fill(x, y, x + w, y + 28, selected ? SURFACE_3 : SURFACE_2);
-        g.drawString(font, label, x + 10, y + 9, TEXT, false);
-        int valueX = x + w - 10 - font.width(value);
-        g.drawString(font, value, valueX, y + 9, selected ? ACCENT : MUTED, false);
+        g.fill(x, y, x + w, y + 30, selected ? 0xFF242A34 : CARD);
+        g.fill(x, y, x + 2, y + 30, selected ? ORANGE : BORDER);
+        g.drawString(font, label, x + 12, y + 10, TEXT, false);
+        int valueX = x + w - 12 - font.width(value);
+        g.drawString(font, value, valueX, y + 10, selected ? ORANGE_BRIGHT : MUTED, false);
+    }
+
+    private void drawFlameMark(GuiGraphics g, int x, int y) {
+        // Small vector flame, keeping the logo native to the GUI and resource-pack independent.
+        g.fill(x + 8, y, x + 14, y + 7, ORANGE);
+        g.fill(x + 5, y + 6, x + 17, y + 17, ORANGE);
+        g.fill(x + 3, y + 13, x + 19, y + 22, ORANGE_DARK);
+        g.fill(x + 7, y + 10, x + 15, y + 21, ORANGE_BRIGHT);
+        g.fill(x + 9, y + 14, x + 14, y + 21, 0xFFFFB04A);
+    }
+
+    private void drawCategoryGlyph(GuiGraphics g, ClientModuleManager.Category category, int cx, int cy, int color) {
+        String glyph = switch (category) {
+            case COMBAT -> "C";
+            case MOVEMENT -> "M";
+            case PLAYER -> "P";
+            case RENDER -> "V";
+            case WORLD -> "W";
+            case MISC -> "*";
+        };
+        g.drawCenteredString(font, glyph, cx, cy - 4, color);
     }
 
     private List<ClientModule> filteredModules() {
         String filter = search.trim().toLowerCase(Locale.ROOT);
         List<ClientModule> result = new ArrayList<>();
         for (ClientModule module : OurClient.modules().inCategory(activeCategory)) {
-            if (filter.isEmpty() || module.id().toLowerCase(Locale.ROOT).contains(filter)
+            if (filter.isEmpty()
+                    || module.id().toLowerCase(Locale.ROOT).contains(filter)
                     || pretty(module.id()).toLowerCase(Locale.ROOT).contains(filter)
-                    || OurClient.modules().descriptionOf(module.id()).toLowerCase(Locale.ROOT).contains(filter)) result.add(module);
+                    || OurClient.modules().descriptionOf(module.id()).toLowerCase(Locale.ROOT).contains(filter)) {
+                result.add(module);
+            }
         }
         return result;
     }
@@ -226,7 +300,9 @@ public final class OurClientClickGui extends Screen {
                 g.drawString(font, line, x, lineY, color, false);
                 line = word;
                 lineY += 11;
-            } else line = candidate;
+            } else {
+                line = candidate;
+            }
         }
         if (!line.isEmpty()) g.drawString(font, line, x, lineY, color, false);
     }
@@ -236,40 +312,49 @@ public final class OurClientClickGui extends Screen {
         double mx = event.x();
         double my = event.y();
         int button = event.button();
-        if (settingsId != null) return settingsMouseClicked(mx, my, button);
 
-        int sidebarY = HEADER + MARGIN + 34;
+        int shellW = Math.min(SHELL_W, Math.max(420, width - 32));
+        int shellH = Math.min(SHELL_H, Math.max(300, height - 32));
+        int sx = (width - shellW) / 2;
+        int sy = (height - shellH) / 2;
+
+        if (settingsId != null) return settingsMouseClicked(mx, my, button, sx, sy, shellW, shellH);
+
+        int rowY = sy + 101;
         for (ClientModuleManager.Category category : categories) {
-            if (inside(mx, my, MARGIN + 8, sidebarY, SIDEBAR - 16, 32)) {
+            if (inside(mx, my, sx + 10, rowY, SIDEBAR_W - 20, 34)) {
                 activeCategory = category;
                 selectedIndex = 0;
                 scroll = 0;
                 return true;
             }
-            sidebarY += 36;
+            rowY += 38;
         }
 
-        int contentX = MARGIN + SIDEBAR + GAP;
-        int contentW = width - contentX - MARGIN;
-        if (inside(mx, my, contentX + contentW - 220, HEADER + MARGIN + 11, 206, 28)) {
+        int contentX = sx + SIDEBAR_W;
+        int contentW = shellW - SIDEBAR_W;
+        int searchW = Math.min(280, Math.max(140, contentW / 3));
+        int searchX = contentX + contentW - searchW - 18;
+        if (inside(mx, my, searchX, sy + 14, searchW, 28)) {
             editingSearch = true;
             return true;
         }
 
         List<ClientModule> modules = filteredModules();
-        int columns = contentW >= 720 ? 2 : 1;
-        int cardW = Math.max(100, (contentW - 16 - (columns - 1) * GAP) / columns);
-        int listTop = HEADER + MARGIN + 54;
+        int columns = contentW >= 650 ? 2 : 1;
+        int cardW = Math.max(120, (contentW - 36 - (columns - 1) * GAP) / columns);
+        int listTop = sy + HEADER_H + 53;
         for (int i = 0; i < modules.size(); i++) {
             int col = i % columns;
             int row = i / columns;
-            int cardX = contentX + 8 + col * (cardW + GAP);
-            int cardY = listTop + row * (CARD_HEIGHT + GAP) - scroll;
-            if (!inside(mx, my, cardX, cardY, cardW, CARD_HEIGHT)) continue;
+            int cardX = contentX + 14 + col * (cardW + GAP);
+            int cardY = listTop + row * (CARD_H + GAP) - scroll;
+            if (!inside(mx, my, cardX, cardY, cardW, CARD_H)) continue;
             selectedIndex = i;
             ClientModule module = modules.get(i);
-            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule toggleable) toggle(module.id(), toggleable);
-            else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule toggleable) {
+                toggle(module.id(), toggleable);
+            } else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
                 settingsId = module.id();
                 selectedSetting = null;
             }
@@ -278,36 +363,41 @@ public final class OurClientClickGui extends Screen {
         return super.mouseClicked(event, doubled);
     }
 
-    private boolean settingsMouseClicked(double mx, double my, int button) {
+    private boolean settingsMouseClicked(double mx, double my, int button, int sx, int sy, int shellW, int shellH) {
         ClientModule module = OurClient.modules().get(settingsId);
-        if (module == null) { settingsId = null; selectedSetting = null; return true; }
-        int w = Math.min(500, Math.max(180, width - 28));
-        int h = Math.min(Math.max(140, height - 28), 360);
-        int x = (width - w) / 2;
-        int y = (height - h) / 2;
-        if (!inside(mx, my, x, y, w, h)) {
+        if (module == null) {
+            settingsId = null;
+            selectedSetting = null;
+            return true;
+        }
+
+        int drawerW = Math.min(470, shellW - 26);
+        int x = sx + shellW - drawerW - 13;
+        int y = sy + 13;
+        int h = shellH - 26;
+        if (!inside(mx, my, x, y, drawerW, h)) {
             settingsId = null;
             selectedSetting = null;
             return true;
         }
         if (button != GLFW.GLFW_MOUSE_BUTTON_1) return true;
 
-        int rowY = y + 65;
+        int rowY = y + 84;
         if (module instanceof ToggleableModule toggleable) {
-            if (inside(mx, my, x + 14, rowY, w - 28, 28)) {
+            if (inside(mx, my, x + 16, rowY, drawerW - 32, 30)) {
                 toggle(module.id(), toggleable);
                 return true;
             }
-            rowY += 36;
+            rowY += 38;
         }
         for (ModuleSettings.Entry entry : module.settings().entries()) {
             if (!entry.visible()) continue;
-            if (inside(mx, my, x + 14, rowY, w - 28, 28)) {
+            if (inside(mx, my, x + 16, rowY, drawerW - 32, 30)) {
                 selectedSetting = entry;
                 adjust(entry, 1);
                 return true;
             }
-            rowY += 34;
+            rowY += 36;
         }
         return true;
     }
@@ -339,7 +429,7 @@ public final class OurClientClickGui extends Screen {
             adjust(selectedSetting, vertical > 0 ? 1 : -1);
             return true;
         }
-        scroll -= (int) Math.signum(vertical) * 42;
+        scroll -= (int) Math.signum(vertical) * 48;
         return true;
     }
 
@@ -347,11 +437,19 @@ public final class OurClientClickGui extends Screen {
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
         if (key == GLFW.GLFW_KEY_ESCAPE) {
-            if (editingSearch) { editingSearch = false; return true; }
-            if (settingsId != null) { settingsId = null; selectedSetting = null; return true; }
+            if (editingSearch) {
+                editingSearch = false;
+                return true;
+            }
+            if (settingsId != null) {
+                settingsId = null;
+                selectedSetting = null;
+                return true;
+            }
             onClose();
             return true;
         }
+
         if (settingsId != null && selectedSetting != null) {
             if (key == GLFW.GLFW_KEY_LEFT) { adjust(selectedSetting, -1); return true; }
             if (key == GLFW.GLFW_KEY_RIGHT) { adjust(selectedSetting, 1); return true; }
@@ -360,6 +458,7 @@ public final class OurClientClickGui extends Screen {
                 return true;
             }
         }
+
         if (editingSearch) {
             if (key == GLFW.GLFW_KEY_BACKSPACE) {
                 if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
@@ -367,8 +466,12 @@ public final class OurClientClickGui extends Screen {
                 scroll = 0;
                 return true;
             }
-            if (key == GLFW.GLFW_KEY_ENTER) { editingSearch = false; return true; }
+            if (key == GLFW.GLFW_KEY_ENTER) {
+                editingSearch = false;
+                return true;
+            }
         }
+
         if (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT) {
             int delta = key == GLFW.GLFW_KEY_RIGHT ? 1 : -1;
             int index = categories.indexOf(activeCategory);
@@ -383,6 +486,7 @@ public final class OurClientClickGui extends Screen {
             }
             return true;
         }
+
         List<ClientModule> modules = filteredModules();
         if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) {
             selectedIndex = Math.floorMod(selectedIndex - 1, modules.size());
@@ -393,13 +497,13 @@ public final class OurClientClickGui extends Screen {
             return true;
         }
         if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) {
-            ClientModule m = modules.get(Math.min(selectedIndex, modules.size() - 1));
-            if (m instanceof ToggleableModule toggleable) toggle(m.id(), toggleable);
+            ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
+            if (module instanceof ToggleableModule toggleable) toggle(module.id(), toggleable);
             return true;
         }
         if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) {
-            ClientModule m = modules.get(Math.min(selectedIndex, modules.size() - 1));
-            settingsId = m.id();
+            ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
+            settingsId = module.id();
             selectedSetting = null;
             return true;
         }
@@ -422,7 +526,10 @@ public final class OurClientClickGui extends Screen {
         if (module == null) return;
         List<ModuleSettings.Entry> entries = module.settings().entries().stream().filter(ModuleSettings.Entry::visible).toList();
         if (entries.isEmpty()) return;
-        if (selectedSetting == null) { selectedSetting = entries.get(0); return; }
+        if (selectedSetting == null) {
+            selectedSetting = entries.get(0);
+            return;
+        }
         int index = entries.indexOf(selectedSetting);
         selectedSetting = entries.get(Math.floorMod(index + delta, entries.size()));
     }
