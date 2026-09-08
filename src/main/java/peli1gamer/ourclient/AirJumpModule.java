@@ -1,12 +1,14 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
 /** Allows an extra jump while airborne, with one activation per press. */
 public final class AirJumpModule implements ToggleableModule {
     private boolean enabled;
     private boolean previousJump;
+    private LocalPlayer activePlayer;
 
     @Override public String id() { return "air-jump"; }
     @Override public boolean enabled() { return enabled; }
@@ -15,6 +17,7 @@ public final class AirJumpModule implements ToggleableModule {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         previousJump = false;
+        activePlayer = enabled ? Minecraft.getInstance().player : null;
     }
 
     @Override
@@ -23,6 +26,11 @@ public final class AirJumpModule implements ToggleableModule {
 
         boolean jump = client.options.keyJump.isDown();
         if (client.screen != null || client.player == null) {
+            previousJump = jump;
+            return;
+        }
+        if (activePlayer != null && activePlayer != client.player) {
+            activePlayer = client.player;
             previousJump = jump;
             return;
         }
