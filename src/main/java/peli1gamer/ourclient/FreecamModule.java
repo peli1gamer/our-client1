@@ -178,7 +178,8 @@ public final class FreecamModule implements ToggleableModule {
 
     private void restoreCamera(Minecraft client) {
         Entity restore = previousCamera;
-        if (restore != null && restore != camera && restore.isAlive() && restore.level() == client.level) {
+        if (restore != null && restore != camera && restore.isAlive()
+                && client.level != null && restore.level() == client.level) {
             client.setCameraEntity(restore);
         } else if (client.player != null) {
             client.setCameraEntity(client.player);
