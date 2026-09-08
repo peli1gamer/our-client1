@@ -11,6 +11,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 public final class FreecamModule implements ToggleableModule {
     private static final double BASE_SPEED = 0.55D;
     private static final double SPRINT_MULTIPLIER = 3.0D;
+    private static final double MAX_FRAME_SECONDS = 0.1D;
     private static boolean renderHookInstalled;
     private static FreecamModule activeInstance;
 
@@ -21,6 +22,7 @@ public final class FreecamModule implements ToggleableModule {
     private LocalPlayer inputOwner;
     private float lockedPlayerYaw;
     private float lockedPlayerPitch;
+    private long lastRenderNanos;
 
     public FreecamModule() { installRenderHook(); }
 
@@ -35,7 +37,10 @@ public final class FreecamModule implements ToggleableModule {
         if (enabled) {
             try {
                 enter(client);
-                if (this.enabled) activeInstance = this;
+                if (this.enabled) {
+                    activeInstance = this;
+                    lastRenderNanos = System.nanoTime();
+                }
             } catch (RuntimeException exception) {
                 this.enabled = false;
                 restoreInput(client);
@@ -58,7 +63,12 @@ public final class FreecamModule implements ToggleableModule {
             FreecamModule instance = activeInstance;
             if (instance == null || !instance.enabled) return;
             try {
-                instance.updateMovement(Minecraft.getInstance(), context.tickCounter().getDynamicDeltaTicks());
+                long now = System.nanoTime();
+                double deltaSeconds = (now - instance.lastRenderNanos) / 1_000_000_000.0D;
+                instance.lastRenderNanos = now;
+                if (!Double.isFinite(deltaSeconds) || deltaSeconds < 0.0D) deltaSeconds = 0.0D;
+                deltaSeconds = Math.min(deltaSeconds, MAX_FRAME_SECONDS);
+                instance.updateMovement(Minecraft.getInstance(), deltaSeconds);
             } catch (RuntimeException exception) {
                 instance.enabled = false;
                 if (activeInstance == instance) activeInstance = null;
@@ -104,8 +114,8 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         freezePlayerInput(player);
-        // Movement is handled once per rendered frame using the renderer's
-        // dynamic delta, so speed stays consistent across different FPS values.
+        // Movement is handled once per rendered frame using a wall-clock delta.
+        // The clamp prevents a long pause/window switch from causing a huge jump.
     }
 
     private void enter(Minecraft client) {
@@ -137,6 +147,7 @@ public final class FreecamModule implements ToggleableModule {
         restoreCamera(client);
         camera = null;
         previousCamera = null;
+        lastRenderNanos = 0L;
     }
 
     private void cleanupAfterWorldLoss(Minecraft client) {
@@ -148,6 +159,7 @@ public final class FreecamModule implements ToggleableModule {
         previousCamera = null;
         previousInput = null;
         inputOwner = null;
+        lastRenderNanos = 0L;
         syncDisabledConfig();
     }
 
@@ -186,12 +198,13 @@ public final class FreecamModule implements ToggleableModule {
         }
     }
 
-    private void updateMovement(Minecraft client, float deltaTicks) {
+    private void updateMovement(Minecraft client, double deltaSeconds) {
         if (camera == null || client.player == null || client.level == null || client.screen != null) return;
         double forward = (client.options.keyUp.isDown() ? 1.0D : 0.0D) - (client.options.keyDown.isDown() ? 1.0D : 0.0D);
         double strafe = (client.options.keyRight.isDown() ? 1.0D : 0.0D) - (client.options.keyLeft.isDown() ? 1.0D : 0.0D);
         double vertical = (client.options.keyJump.isDown() ? 1.0D : 0.0D) - (client.options.keyShift.isDown() ? 1.0D : 0.0D);
         if (forward == 0.0D && strafe == 0.0D && vertical == 0.0D) return;
+        if (!Double.isFinite(deltaSeconds) || deltaSeconds <= 0.0D) return;
 
         double length = Math.sqrt(forward * forward + strafe * strafe);
         if (length > 1.0D) {
@@ -199,14 +212,16 @@ public final class FreecamModule implements ToggleableModule {
             strafe /= length;
         }
 
-        if (!Float.isFinite(deltaTicks) || deltaTicks <= 0.0F) return;
-        double speed = BASE_SPEED * (client.options.keySprint.isDown() ? SPRINT_MULTIPLIER : 1.0D) * deltaTicks;
+        // BASE_SPEED is the old blocks-per-tick value. Convert it to blocks/sec
+        // so the same speed is maintained regardless of render FPS.
+        double speed = BASE_SPEED * (client.options.keySprint.isDown() ? SPRINT_MULTIPLIER : 1.0D);
+        double distance = speed * deltaSeconds * 20.0D;
         double yaw = Math.toRadians(camera.getYRot());
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
         double mx = strafe * cos - forward * sin;
         double mz = -strafe * sin + forward * cos;
-        camera.setPos(camera.getX() + mx * speed, camera.getY() + vertical * speed, camera.getZ() + mz * speed);
+        camera.setPos(camera.getX() + mx * distance, camera.getY() + vertical * distance, camera.getZ() + mz * distance);
     }
 
     private static float wrapDegrees(float value) {
