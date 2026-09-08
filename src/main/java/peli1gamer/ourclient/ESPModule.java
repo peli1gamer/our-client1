@@ -9,12 +9,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** Stable player-box ESP using Fabric's supported world consumer path. */
+/** Stable player-box ESP using Fabric's world extraction/buffer path. */
 public final class ESPModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
     private static boolean renderHookInstalled;
@@ -48,48 +44,46 @@ public final class ESPModule implements ToggleableModule {
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
-            List<Box> boxes = new ArrayList<>();
-
-            for (Player target : mc.level.players()) {
-                if (target == mc.player || !target.isAlive()) continue;
-                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                AABB worldBox = target.getBoundingBox();
-                AABB box = worldBox.move(-camera.x, -camera.y, -camera.z);
-                boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
-                        (float) box.maxX, (float) box.maxY, (float) box.maxZ));
-            }
-
-            if (boxes.isEmpty()) return;
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
-            emitBoxes(pose, buffer, boxes);
+
+            // WorldRenderContext's pose stack is already camera-relative. Do not
+            // subtract the camera position a second time (that produces invalid
+            // coordinates with the modern 1.21.11 render pipeline).
+            for (Player target : mc.level.players()) {
+                if (target == mc.player || !target.isAlive()) continue;
+                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
+                AABB box = target.getBoundingBox();
+                emitBox(pose, buffer, box);
+            }
         } catch (RuntimeException exception) {
-            enabled = false;
-            if (activeInstance == this) activeInstance = null;
-            OurClient.LOGGER.error("Disabling ESP after a render failure", exception);
-            ClientConfig config = OurClient.config();
-            if (config != null) config.esp = false;
+            disableAfterRenderFailure("ESP", exception);
         }
     }
 
-    private static void emitBoxes(PoseStack.Pose pose, VertexConsumer consumer, List<Box> boxes) {
-        for (Box b : boxes) {
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.maxX, b.minY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.minY, b.maxZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.minX, b.minY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.minY, b.minZ);
-            line(pose, consumer, b.minX, b.maxY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.maxY, b.minZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.maxX, b.maxY, b.maxZ, b.minX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.maxY, b.maxZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.maxY, b.maxZ);
-        }
+    private void disableAfterRenderFailure(String name, RuntimeException exception) {
+        enabled = false;
+        if (activeInstance == this) activeInstance = null;
+        OurClient.LOGGER.error("Disabling {} after a render failure", name, exception);
+        ClientConfig config = OurClient.config();
+        if (config != null) config.esp = false;
+    }
+
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.maxZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.minZ);
+        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
     }
 
     private static void line(PoseStack.Pose pose, VertexConsumer consumer,
@@ -101,6 +95,4 @@ public final class ESPModule implements ToggleableModule {
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
-
-    private record Box(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {}
 }
