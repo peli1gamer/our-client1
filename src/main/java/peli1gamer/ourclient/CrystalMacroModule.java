@@ -25,6 +25,7 @@ public final class CrystalMacroModule implements ToggleableModule {
     private int nextBreakDelay = 2;
     private int previousSlot = -1;
     private int activeCrystalSlot = -1;
+    private LocalPlayer activePlayer;
 
     @Override public String id() { return "crystal-macro"; }
     @Override public boolean enabled() { return enabled; }
@@ -37,10 +38,12 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (enabled) {
             previousSlot = -1;
             activeCrystalSlot = -1;
+            activePlayer = mc.player;
             reset();
             rollBreakDelay();
         } else {
             restorePreviousSlot(mc.player);
+            activePlayer = null;
             reset();
         }
     }
@@ -54,6 +57,12 @@ public final class CrystalMacroModule implements ToggleableModule {
     public void onClientTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.level == null || mc.gameMode == null
                 || mc.screen != null || !mc.player.isAlive() || mc.player.isUsingItem()) return;
+
+        if (activePlayer != mc.player) {
+            previousSlot = -1;
+            activeCrystalSlot = -1;
+            activePlayer = mc.player;
+        }
 
         if (placeDelay > 0) placeDelay--;
         if (breakDelay > 0) breakDelay--;
