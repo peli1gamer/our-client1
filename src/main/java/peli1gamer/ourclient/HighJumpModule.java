@@ -15,7 +15,6 @@ public final class HighJumpModule implements ToggleableModule {
     public void setEnabled(boolean enabled) {
         Minecraft client = Minecraft.getInstance();
         this.enabled = enabled;
-        // Enabling while jump is already held must not synthesize a new press.
         previousJump = enabled && client.options != null && client.options.keyJump.isDown();
     }
 
@@ -25,6 +24,10 @@ public final class HighJumpModule implements ToggleableModule {
 
         boolean jump = client.options.keyJump.isDown();
         if (client.screen != null || client.player == null) {
+            previousJump = jump;
+            return;
+        }
+        if (client.player.isSpectator() || client.player.isPassenger()) {
             previousJump = jump;
             return;
         }
