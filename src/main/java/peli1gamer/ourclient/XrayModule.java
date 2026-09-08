@@ -72,8 +72,7 @@ public final class XrayModule implements ToggleableModule {
             matches.addAll(next);
         } catch (RuntimeException exception) {
             matches.clear();
-            enabled = false;
-            if (active == this) active = null;
+            setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a scan failure", exception);
             ClientConfig config = OurClient.config();
             if (config != null) config.xray = false;
@@ -121,8 +120,7 @@ public final class XrayModule implements ToggleableModule {
                 if (++rendered >= MAX_RENDERED_BLOCKS) break;
             }
         } catch (RuntimeException exception) {
-            enabled = false;
-            if (active == this) active = null;
+            setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a render failure", exception);
             ClientConfig config = OurClient.config();
             if (config != null) config.xray = false;
