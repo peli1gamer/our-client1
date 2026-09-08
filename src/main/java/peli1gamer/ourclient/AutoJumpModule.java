@@ -23,6 +23,12 @@ public final class AutoJumpModule implements ToggleableModule {
             cooldown = 0;
             return;
         }
+        // Auto Jump should only drive normal player movement. Spectators and
+        // mounted players have different movement/jump semantics.
+        if (client.player.isSpectator() || client.player.isPassenger()) {
+            cooldown = 0;
+            return;
+        }
         if (cooldown > 0) {
             cooldown--;
             return;
