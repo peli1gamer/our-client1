@@ -45,6 +45,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int previousSelectedSlot = -1;
     private int activePlacementSlot = -1;
     private ClientLevel activeLevel;
+    private LocalPlayer activePlayer;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -59,6 +60,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             previousSelectedSlot = client.player == null ? -1 : client.player.getInventory().getSelectedSlot();
             activePlacementSlot = -1;
             activeLevel = client.level;
+            activePlayer = client.player;
             loadRetryCooldown = 0;
         } else {
             restoreSelectedSlot();
@@ -72,10 +74,21 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
                 || client.screen != null) return;
         if (!client.player.isAlive()) return;
 
+        if (activePlayer != null && activePlayer != client.player) {
+            restoreSelectedSlot();
+            resetProgress();
+            activePlayer = client.player;
+            activeLevel = client.level;
+            previousSelectedSlot = client.player.getInventory().getSelectedSlot();
+            activePlacementSlot = -1;
+            return;
+        }
+
         if (activeLevel != client.level) {
             restoreSelectedSlot();
             resetProgress();
             activeLevel = client.level;
+            activePlayer = client.player;
             previousSelectedSlot = client.player.getInventory().getSelectedSlot();
             activePlacementSlot = -1;
         }
@@ -332,5 +345,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         retryCooldown = 0;
         loadRetryCooldown = 0;
         activeLevel = null;
+        activePlayer = null;
     }
 }
