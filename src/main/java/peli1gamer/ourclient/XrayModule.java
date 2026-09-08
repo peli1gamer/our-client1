@@ -103,18 +103,10 @@ public final class XrayModule implements ToggleableModule {
         try {
             List<BlockPos> snapshot = List.copyOf(matches);
             MultiBufferSource consumers = context.consumers();
-
-            // RenderTypes.lines() in this Minecraft version requires a LineWidth
-            // vertex element. VertexConsumer does not expose that element, so using
-            // it directly leaves incomplete vertices and crashes during upload.
-            // The debug line strip render type supplies its width through the render
-            // state and is safe for this extraction path.
-            VertexConsumer buffer = consumers.getBuffer(RenderTypes.debugLineStrip(1.5));
+            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
             int rendered = 0;
 
-            // The world render pose is already camera-relative; use world-space
-            // block coordinates rather than translating by the camera twice.
             for (BlockPos pos : snapshot) {
                 if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
                 AABB box = new AABB(pos).inflate(.01);
@@ -130,34 +122,37 @@ public final class XrayModule implements ToggleableModule {
         }
     }
 
-    /** Emits one box as a single line-strip path, with duplicated transition vertices. */
     private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
         float minX = (float) b.minX, minY = (float) b.minY, minZ = (float) b.minZ;
         float maxX = (float) b.maxX, maxY = (float) b.maxY, maxZ = (float) b.maxZ;
 
-        lineStrip(pose, consumer,
-                minX, minY, minZ, maxX, minY, minZ,
-                maxX, minY, maxZ, minX, minY, maxZ, minX, minY, minZ,
-                minX, maxY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ,
-                minX, maxY, maxZ, minX, maxY, minZ,
-                minX, minY, minZ, minX, maxY, minZ,
-                maxX, maxY, minZ, maxX, minY, minZ,
-                maxX, minY, maxZ, maxX, maxY, maxZ,
-                minX, maxY, maxZ, minX, minY, maxZ);
+        line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
+        line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, minY, minZ);
+        line(pose, consumer, minX, maxY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, maxY, minZ, maxX, maxY, maxZ);
+        line(pose, consumer, maxX, maxY, maxZ, minX, maxY, maxZ);
+        line(pose, consumer, minX, maxY, maxZ, minX, maxY, minZ);
+        line(pose, consumer, minX, minY, minZ, minX, maxY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, minY, maxZ, maxX, maxY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, maxY, maxZ);
     }
 
-    private static void lineStrip(PoseStack.Pose pose, VertexConsumer consumer, float... p) {
-        for (int i = 0; i < p.length; i += 3) {
-            float x = p[i], y = p[i + 1], z = p[i + 2];
-            float nx = 0.0f, ny = 1.0f, nz = 0.0f;
-            if (i + 5 < p.length) {
-                nx = p[i + 3] - x;
-                ny = p[i + 4] - y;
-                nz = p[i + 5] - z;
-            }
-            consumer.addVertex(pose, x, y, z)
-                    .setColor(1.0f, .55f, .05f, .95f)
-                    .setNormal(pose, nx, ny, nz);
-        }
+    private static void line(PoseStack.Pose pose, VertexConsumer consumer,
+                             float x1, float y1, float z1,
+                             float x2, float y2, float z2) {
+        float nx = x2 - x1;
+        float ny = y2 - y1;
+        float nz = z2 - z1;
+        consumer.addVertex(pose, x1, y1, z1)
+                .setColor(1.0f, .55f, .05f, .95f)
+                .setNormal(pose, nx, ny, nz)
+                .setLineWidth(1.5f);
+        consumer.addVertex(pose, x2, y2, z2)
+                .setColor(1.0f, .55f, .05f, .95f)
+                .setNormal(pose, nx, ny, nz)
+                .setLineWidth(1.5f);
     }
 }
