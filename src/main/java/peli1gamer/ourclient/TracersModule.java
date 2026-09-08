@@ -48,12 +48,9 @@ public final class TracersModule implements ToggleableModule {
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
 
-            // The world render pose is already translated by the active camera.
-            // Supply world-space coordinates and let the pose perform the camera transform.
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-
                 vertex(pose, buffer, (float) mc.player.getX(), (float) mc.player.getEyeY(), (float) mc.player.getZ());
                 vertex(pose, buffer, (float) target.getX(), (float) target.getEyeY(), (float) target.getZ());
             }
@@ -69,6 +66,7 @@ public final class TracersModule implements ToggleableModule {
     private static void vertex(PoseStack.Pose pose, VertexConsumer consumer, float x, float y, float z) {
         consumer.addVertex(pose, x, y, z)
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
+                .setLineWidth(1.5f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
 }
