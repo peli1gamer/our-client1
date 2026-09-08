@@ -17,7 +17,6 @@ public final class TracersModule implements ToggleableModule {
     private boolean enabled;
 
     public TracersModule() { installRenderHook(); }
-
     @Override public String id() { return "tracers"; }
     @Override public boolean enabled() { return enabled; }
 
@@ -41,15 +40,13 @@ public final class TracersModule implements ToggleableModule {
         if (!enabled || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
-
         try {
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
-
             for (Player target : mc.level.players()) {
-                if (target == mc.player || !target.isAlive()) continue;
+                if (target == null || target == mc.player || !target.isAlive() || target.isSpectator()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
                 vertex(pose, buffer, (float) mc.player.getX(), (float) mc.player.getEyeY(), (float) mc.player.getZ());
                 vertex(pose, buffer, (float) target.getX(), (float) target.getEyeY(), (float) target.getZ());
