@@ -19,7 +19,6 @@ public final class ESPModule implements ToggleableModule {
     private boolean enabled;
 
     public ESPModule() { installRenderHook(); }
-
     @Override public String id() { return "esp"; }
     @Override public boolean enabled() { return enabled; }
 
@@ -42,7 +41,8 @@ public final class ESPModule implements ToggleableModule {
     private void render(WorldRenderContext context) {
         if (!enabled || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
+        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null
+                || mc.getCameraEntity().level() != mc.level) return;
 
         try {
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
@@ -67,11 +67,8 @@ public final class ESPModule implements ToggleableModule {
         ClientConfig config = OurClient.config();
         if (config != null) {
             config.esp = false;
-            try {
-                OurClient.syncAndSaveConfigFromModules();
-            } catch (RuntimeException saveException) {
-                OurClient.LOGGER.error("Could not persist disabled {} state", name, saveException);
-            }
+            try { OurClient.syncAndSaveConfigFromModules(); }
+            catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist disabled {} state", name, saveException); }
         }
     }
 
@@ -92,15 +89,8 @@ public final class ESPModule implements ToggleableModule {
         line(pose, consumer, minX, minY, maxZ, minX, maxY, maxZ);
     }
 
-    private static void line(PoseStack.Pose pose, VertexConsumer consumer,
-                             float x1, float y1, float z1, float x2, float y2, float z2) {
-        consumer.addVertex(pose, x1, y1, z1)
-                .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                .setLineWidth(1.5f)
-                .setNormal(pose, 0.0f, 1.0f, 0.0f);
-        consumer.addVertex(pose, x2, y2, z2)
-                .setColor(1.0f, 1.0f, 1.0f, 0.9f)
-                .setLineWidth(1.5f)
-                .setNormal(pose, 0.0f, 1.0f, 0.0f);
+    private static void line(PoseStack.Pose pose, VertexConsumer consumer, float x1, float y1, float z1, float x2, float y2, float z2) {
+        consumer.addVertex(pose, x1, y1, z1).setColor(1.0f, 1.0f, 1.0f, 0.9f).setLineWidth(1.5f).setNormal(pose, 0.0f, 1.0f, 0.0f);
+        consumer.addVertex(pose, x2, y2, z2).setColor(1.0f, 1.0f, 1.0f, 0.9f).setLineWidth(1.5f).setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
 }
