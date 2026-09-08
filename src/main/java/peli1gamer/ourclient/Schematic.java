@@ -9,6 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -68,10 +69,39 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             if (!positions.add(new Position(x, y, z))) {
                 throw new IllegalArgumentException("Duplicate schematic position: " + x + "," + y + "," + z);
             }
+
             BlockState state = registered.value().defaultBlockState();
+            JsonElement propertiesElement = block.get("properties");
+            if (propertiesElement != null && !propertiesElement.isJsonNull()) {
+                if (!propertiesElement.isJsonObject()) {
+                    throw new IllegalArgumentException("Schematic block properties must be an object");
+                }
+                JsonObject properties = propertiesElement.getAsJsonObject();
+                for (var entry : properties.entrySet()) {
+                    if (!entry.getValue().isJsonPrimitive()
+                            || !entry.getValue().getAsJsonPrimitive().isString()) {
+                        throw new IllegalArgumentException("Schematic block property must be a string: " + entry.getKey());
+                    }
+                    Property<?> property = state.getProperties().stream()
+                            .filter(candidate -> candidate.getName().equals(entry.getKey()))
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Unknown property for " + id + ": " + entry.getKey()));
+                    state = setProperty(state, property, entry.getValue().getAsString());
+                }
+            }
             entries.add(new BlockEntry(x, y, z, state));
         }
         return new Schematic(name, List.copyOf(entries));
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static BlockState setProperty(BlockState state, Property<?> property, String value) {
+        Property rawProperty = property;
+        Comparable parsed = (Comparable) rawProperty.getValue(value)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Invalid value for property " + property.getName() + ": " + value));
+        return state.setValue(rawProperty, parsed);
     }
 
     private static int requiredInt(JsonObject object, String key) {
