@@ -42,6 +42,8 @@ public final class ClientModuleManager {
             register(new AirJumpModule());
             register(new SprintModule());
             register(new FullbrightModule());
+            register(new HighJumpModule());
+            register(new BunnyHopModule());
 
             // Expanded catalog remains isolated so unfinished features cannot
             // destabilize the already implemented modules.
@@ -57,8 +59,8 @@ public final class ClientModuleManager {
 
     private void registerCatalog() {
         String[] movement = {
-            "auto-sprint", "speed", "step", "long-jump", "bunny-hop",
-            "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "high-jump", "safe-walk"
+            "auto-sprint", "speed", "step", "long-jump",
+            "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "safe-walk"
         };
         String[] render = {
             "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp",
