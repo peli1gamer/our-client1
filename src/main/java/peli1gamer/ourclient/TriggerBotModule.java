@@ -7,6 +7,7 @@ import net.minecraft.world.phys.EntityHitResult;
 /** Automatically attacks a valid living entity under the crosshair when the module is enabled. */
 public final class TriggerBotModule implements ToggleableModule {
     private static final float MIN_ATTACK_STRENGTH = 0.9f;
+    private static final double MAX_ATTACK_DISTANCE_SQR = 3.1D * 3.1D;
 
     private boolean enabled;
     private int cooldown;
@@ -33,6 +34,8 @@ public final class TriggerBotModule implements ToggleableModule {
         if (!(mc.hitResult instanceof EntityHitResult hit)) return;
         if (!(hit.getEntity() instanceof LivingEntity target)) return;
         if (target == mc.player || !target.isAlive() || target.isSpectator()) return;
+        if (target.level() != mc.player.level()) return;
+        if (mc.player.distanceToSqr(target) > MAX_ATTACK_DISTANCE_SQR) return;
         if (!mc.player.hasLineOfSight(target)) return;
         if (mc.player.getAttackStrengthScale(0.0f) < MIN_ATTACK_STRENGTH) return;
 
