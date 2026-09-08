@@ -25,7 +25,6 @@ public final class AirJumpModule implements ToggleableModule {
         if (jump && !previousJump && !client.player.onGround()) {
             Vec3 velocity = client.player.getDeltaMovement();
             client.player.setDeltaMovement(velocity.x, 0.42D, velocity.z);
-            client.player.hasImpulse = true;
         }
         previousJump = jump;
     }
