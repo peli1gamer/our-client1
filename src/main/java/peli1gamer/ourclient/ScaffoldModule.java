@@ -17,6 +17,7 @@ public final class ScaffoldModule implements ToggleableModule {
     private static final double RANGE = 5.0D;
     private boolean enabled;
     private int previousSlot = -1;
+    private int activePlacementSlot = -1;
 
     @Override public String id() { return "scaffold"; }
     @Override public boolean enabled() { return enabled; }
@@ -27,7 +28,10 @@ public final class ScaffoldModule implements ToggleableModule {
         this.enabled = enabled;
         Minecraft client = Minecraft.getInstance();
         if (enabled) {
-            if (client.player != null) previousSlot = client.player.getInventory().getSelectedSlot();
+            if (client.player != null) {
+                previousSlot = client.player.getInventory().getSelectedSlot();
+                activePlacementSlot = -1;
+            }
         } else {
             restoreSelectedSlot(client);
         }
@@ -62,6 +66,7 @@ public final class ScaffoldModule implements ToggleableModule {
         int slot = findBlockSlot(client.player);
         if (slot < 0) return false;
         int oldSlot = client.player.getInventory().getSelectedSlot();
+        if (activePlacementSlot < 0) activePlacementSlot = slot;
         client.player.getInventory().setSelectedSlot(slot);
         try {
             Vec3 eye = client.player.getEyePosition();
@@ -92,8 +97,12 @@ public final class ScaffoldModule implements ToggleableModule {
 
     private void restoreSelectedSlot(Minecraft client) {
         if (client.player != null && previousSlot >= 0 && previousSlot < 9) {
-            client.player.getInventory().setSelectedSlot(previousSlot);
+            int selected = client.player.getInventory().getSelectedSlot();
+            if (activePlacementSlot < 0 || selected == activePlacementSlot) {
+                client.player.getInventory().setSelectedSlot(previousSlot);
+            }
         }
         previousSlot = -1;
+        activePlacementSlot = -1;
     }
 }
