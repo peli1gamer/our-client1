@@ -79,7 +79,9 @@ public final class OurClientClickGui extends Screen {
     private void renderSettings(GuiGraphics g) {
         ClientModule module = OurClient.modules().get(settingsId);
         if (module == null) { settingsId = null; return; }
-        int w = Math.min(430, width - 36), h = settingsHeight();
+        List<ModuleSettings.Entry> entries = module.settings().entries();
+        int h = 105 + Math.max(1, entries.size()) * 38;
+        int w = Math.min(430, width - 36);
         int x = (width - w) / 2, y = (height - h) / 2;
         g.fill(x, y, x + w, y + h, 0xF2181822);
         g.fill(x, y, x + w, y + 3, ACCENT);
@@ -87,22 +89,22 @@ public final class OurClientClickGui extends Screen {
         g.drawString(font, "ESC closes this panel", x + 18, y + 32, MUTED, false);
         int row = y + 55;
         if (module instanceof ToggleableModule t) { setting(g, x, row, w, "Enabled", t.enabled() ? "ON" : "OFF"); row += 38; }
-        ClientConfig c = OurClient.config();
-        if (c != null && settingsId.equals("aim-assist")) {
-            setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange)); row += 38;
-            setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
-        } else if (c != null && settingsId.equals("auto-schematic-builder")) {
-            setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
-        } else {
-            g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
+        for (ModuleSettings.Entry entry : entries) {
+            if (!entry.visible()) continue;
+            setting(g, x, row, w, entry.label(), entry.value().get());
+            row += 38;
         }
+        if (!(module instanceof ToggleableModule) && entries.isEmpty())
+            g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
         g.drawString(font, "Click a value, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
     }
 
     private int settingsHeight() {
-        if (settingsId != null && settingsId.equals("aim-assist")) return 190;
-        if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
-        return 130;
+        ClientModule module = settingsId == null ? null : OurClient.modules().get(settingsId);
+        if (module == null) return 130;
+        int visible = 0;
+        for (ModuleSettings.Entry entry : module.settings().entries()) if (entry.visible()) visible++;
+        return 105 + Math.max(1, visible + (module instanceof ToggleableModule ? 1 : 0)) * 38;
     }
 
     private void setting(GuiGraphics g, int x, int y, int w, String label, String value) {
@@ -125,7 +127,7 @@ public final class OurClientClickGui extends Screen {
         return switch (module.id()) {
             case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
             case "tracers", "esp", "xray" -> 2;
-            case "freecam" -> 1;
+            case "freecam", "auto-sprint", "fast-climb" -> 1;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
             default -> 4;
         };
@@ -149,25 +151,27 @@ public final class OurClientClickGui extends Screen {
         if (inside(mx, my, x + w - 70, y, 70, 42)) { settingsId = null; editingSetting = null; return true; }
         int row = y + 55;
         if (module instanceof ToggleableModule t && inside(mx, my, x, row, w, 30)) { toggle(settingsId, t); return true; }
-        row += 38;
-        if (settingsId.equals("aim-assist")) {
-            if (inside(mx, my, x, row, w, 30)) { editingSetting = "range"; return true; }
-            if (inside(mx, my, x, row + 38, w, 30)) { editingSetting = "smoothness"; return true; }
-        } else if (settingsId.equals("auto-schematic-builder") && inside(mx, my, x, row, w, 30)) editingSetting = "placements";
+        if (module instanceof ToggleableModule) row += 38;
+        for (ModuleSettings.Entry entry : module.settings().entries()) {
+            if (!entry.visible()) continue;
+            if (inside(mx, my, x, row, w, 30)) { editingSetting = entry.id(); return true; }
+            row += 38;
+        }
         return true;
     }
 
     private void toggle(String id, ToggleableModule t) { try { t.setEnabled(!t.enabled()); OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException e) { OurClient.LOGGER.error("Failed to toggle '{}'", id, e); try { t.setEnabled(false); } catch (RuntimeException ignored) {} } }
     @Override public boolean mouseScrolled(double mx, double my, double h, double v) { if (editingSetting != null) { adjustSetting(v > 0 ? 1 : -1); return true; } return super.mouseScrolled(mx, my, h, v); }
+
     private void adjustSetting(int direction) {
-        ClientConfig c = OurClient.config(); if (c == null || editingSetting == null) return;
-        switch (editingSetting) {
-            case "range" -> c.aimRange = Math.max(1f, Math.min(64f, c.aimRange + direction));
-            case "smoothness" -> c.aimSmoothing = Math.max(.01f, Math.min(1f, c.aimSmoothing + direction * .01f));
-            case "placements" -> c.schematicPlacementsPerTick = Math.max(1, Math.min(20, c.schematicPlacementsPerTick + direction));
-            default -> { return; }
+        ClientModule module = settingsId == null ? null : OurClient.modules().get(settingsId);
+        if (module == null || editingSetting == null) return;
+        for (ModuleSettings.Entry entry : module.settings().entries()) {
+            if (entry.id().equals(editingSetting)) {
+                if (direction > 0) entry.increment().run(); else entry.decrement().run();
+                return;
+            }
         }
-        OurClient.syncAndSaveConfigFromModules();
     }
 
     @Override public boolean keyPressed(KeyEvent event) {
@@ -184,6 +188,7 @@ public final class OurClientClickGui extends Screen {
         if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
         return super.keyPressed(event);
     }
+
     @Override public boolean charTyped(CharacterEvent event) { if (editingSearch && !Character.isISOControl(event.codepoint())) { search += new String(Character.toChars(event.codepoint())); selectedIndex = 0; return true; } return super.charTyped(event); }
     private static boolean inside(double mx, double my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
     private static String pretty(String id) { String[] words = id.split("[-_]"); StringBuilder out = new StringBuilder(); for (String word : words) { if (!out.isEmpty()) out.append(' '); if (!word.isEmpty()) out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)); } return out.toString(); }
