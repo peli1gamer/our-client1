@@ -9,6 +9,7 @@ import net.minecraft.world.phys.AABB;
 import java.util.Locale;
 
 public final class AimAssistModule implements ToggleableModule {
+    private final ModuleSettings settings = createSettings();
     private boolean enabled;
     private LivingEntity target;
 
@@ -23,13 +24,15 @@ public final class AimAssistModule implements ToggleableModule {
     }
 
     @Override
-    public ModuleSettings settings() {
-        ModuleSettings settings = new ModuleSettings();
-        settings.number("range", "Range", () -> String.format(Locale.ROOT, "%.1f", range()),
+    public ModuleSettings settings() { return settings; }
+
+    private ModuleSettings createSettings() {
+        ModuleSettings value = new ModuleSettings();
+        value.number("range", "Range", () -> String.format(Locale.ROOT, "%.1f", range()),
                 () -> setRange(range() + 0.5f), () -> setRange(range() - 0.5f));
-        settings.number("smoothness", "Smoothness", () -> String.format(Locale.ROOT, "%.2f", smoothing()),
+        value.number("smoothness", "Smoothness", () -> String.format(Locale.ROOT, "%.2f", smoothing()),
                 () -> setSmoothing(smoothing() + 0.02f), () -> setSmoothing(smoothing() - 0.02f));
-        return settings;
+        return value;
     }
 
     private float range() {
