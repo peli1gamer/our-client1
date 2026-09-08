@@ -23,7 +23,7 @@ public final class AimAssistModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.screen != null) return;
         LocalPlayer player = client.player;
-        if (!player.isAlive()) {
+        if (!player.isAlive() || player.isSpectator() || player.isPassenger()) {
             target = null;
             return;
         }
