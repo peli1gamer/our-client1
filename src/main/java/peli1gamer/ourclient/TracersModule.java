@@ -63,11 +63,17 @@ public final class TracersModule implements ToggleableModule {
                         (float) (target.getZ() - camera.z));
             }
         } catch (RuntimeException exception) {
-            enabled = false;
-            if (activeInstance == this) activeInstance = null;
+            setEnabled(false);
             OurClient.LOGGER.error("Disabling tracers after a render failure", exception);
             ClientConfig config = OurClient.config();
-            if (config != null) config.tracers = false;
+            if (config != null) {
+                config.tracers = false;
+                try {
+                    OurClient.syncAndSaveConfigFromModules();
+                } catch (RuntimeException saveException) {
+                    OurClient.LOGGER.error("Could not persist disabled tracers state", saveException);
+                }
+            }
         }
     }
 
