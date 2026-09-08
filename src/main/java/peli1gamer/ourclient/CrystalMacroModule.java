@@ -19,6 +19,7 @@ import java.util.Random;
 /** Places an end crystal on the crosshair block and breaks a crosshair crystal while enabled. */
 public final class CrystalMacroModule implements ToggleableModule {
     private static final double MAX_BREAK_RANGE = 3.0D;
+    private static final float MIN_BREAK_ATTACK_STRENGTH = 0.9f;
     private final Random random = new Random();
     private boolean enabled;
     private int placeDelay;
@@ -120,6 +121,7 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (!(entity instanceof EndCrystal) || !entity.isAlive()) return;
         if (entity.level() != mc.level || mc.player.distanceToSqr(entity) > MAX_BREAK_RANGE * MAX_BREAK_RANGE) return;
         if (!mc.player.hasLineOfSight(entity)) return;
+        if (mc.player.getAttackStrengthScale(0.0f) < MIN_BREAK_ATTACK_STRENGTH) return;
 
         mc.gameMode.attack(mc.player, entity);
         mc.player.resetAttackStrengthTicker();
