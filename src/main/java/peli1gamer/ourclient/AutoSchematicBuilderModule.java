@@ -188,12 +188,25 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (!Files.exists(file)) {
                 Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n",
                         StandardOpenOption.CREATE_NEW);
+                schematic = null;
+                client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                        "Created empty schematic at config/our-client1/schematics/" + requestedFile
+                                + ". Add blocks before enabling the builder."), true);
+                return;
             }
             long size = Files.size(file);
             if (size > MAX_SCHEMATIC_FILE_BYTES) {
                 throw new IllegalArgumentException("Schematic file is too large (max 8 MiB)");
             }
-            schematic = Schematic.parse(Files.readString(file), requestedFile);
+            String json = Files.readString(file);
+            Schematic parsed = Schematic.parse(json, requestedFile);
+            if (parsed.blocks().isEmpty()) {
+                schematic = null;
+                client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                        "Schematic is empty. Add at least one block before enabling the builder."), true);
+                return;
+            }
+            schematic = parsed;
         } catch (IOException | RuntimeException exception) {
             schematic = null;
             String message = exception.getMessage();
