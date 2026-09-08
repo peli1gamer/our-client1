@@ -17,7 +17,6 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lightweight ore overlay. Scans a bounded area and renders through Fabric's world consumers. */
 public final class XrayModule implements ToggleableModule {
     private static final int MIN_RADIUS = 8;
     private static final int MAX_RADIUS = 32;
@@ -26,6 +25,7 @@ public final class XrayModule implements ToggleableModule {
     private static boolean hookInstalled;
     private static XrayModule active;
 
+    private final ModuleSettings settings = createSettings();
     private boolean enabled;
     private int radius = 20;
     private int scanTimer;
@@ -37,14 +37,14 @@ public final class XrayModule implements ToggleableModule {
     @Override public String id() { return "xray"; }
     @Override public String description() { return "Highlights nearby valuable ores without modifying world blocks."; }
     @Override public boolean enabled() { return enabled; }
+    @Override public ModuleSettings settings() { return settings; }
 
-    @Override
-    public ModuleSettings settings() {
-        ModuleSettings settings = new ModuleSettings();
-        settings.number("radius", "Scan radius", () -> Integer.toString(radius),
+    private ModuleSettings createSettings() {
+        ModuleSettings value = new ModuleSettings();
+        value.number("radius", "Scan radius", () -> Integer.toString(radius),
                 () -> radius = Math.min(MAX_RADIUS, radius + 2),
                 () -> radius = Math.max(MIN_RADIUS, radius - 2));
-        return settings;
+        return value;
     }
 
     @Override
