@@ -26,9 +26,6 @@ public final class FreecamModule implements ToggleableModule {
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
         Minecraft client = Minecraft.getInstance();
-        // Freecam changes the active camera and grabs the mouse, so never enter
-        // it while another Screen owns input (the ClickGUI can toggle modules).
-        // Leave the module disabled; it can be enabled again after the screen closes.
         if (enabled && client.screen != null) return;
 
         this.enabled = enabled;
@@ -39,6 +36,7 @@ public final class FreecamModule implements ToggleableModule {
                 this.enabled = false;
                 restoreInput(client);
                 restoreCamera(client);
+                releaseMouse(client);
                 camera = null;
                 previousCamera = null;
                 OurClient.LOGGER.error("Could not enable freecam; state was rolled back", exception);
@@ -68,7 +66,6 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         LocalPlayer player = client.player;
-
         float playerYaw = player.getYRot();
         float playerPitch = player.getXRot();
         float yawDelta = wrapDegrees(playerYaw - lockedPlayerYaw);
@@ -113,6 +110,7 @@ public final class FreecamModule implements ToggleableModule {
     private void exit(Minecraft client) {
         restoreInput(client);
         restoreCamera(client);
+        releaseMouse(client);
         camera = null;
         previousCamera = null;
     }
@@ -120,12 +118,19 @@ public final class FreecamModule implements ToggleableModule {
     private void cleanupAfterWorldLoss(Minecraft client) {
         restoreInput(client);
         restoreCamera(client);
+        releaseMouse(client);
         enabled = false;
         camera = null;
         previousCamera = null;
         previousInput = null;
         inputOwner = null;
         syncDisabledConfig();
+    }
+
+    private void releaseMouse(Minecraft client) {
+        if (client.mouseHandler != null && client.screen == null) {
+            client.mouseHandler.releaseMouse();
+        }
     }
 
     private void syncDisabledConfig() {
@@ -168,13 +173,11 @@ public final class FreecamModule implements ToggleableModule {
         double forward = (client.options.keyUp.isDown() ? 1.0D : 0.0D) - (client.options.keyDown.isDown() ? 1.0D : 0.0D);
         double strafe = (client.options.keyRight.isDown() ? 1.0D : 0.0D) - (client.options.keyLeft.isDown() ? 1.0D : 0.0D);
         double vertical = (client.options.keyJump.isDown() ? 1.0D : 0.0D) - (client.options.keyShift.isDown() ? 1.0D : 0.0D);
-        if (forward == 0.0D && strafe == 0.0D && vertical == 0.0D) return;
-
-        double length = Math.sqrt(forward * forward + strafe * strafe);
-        if (length > 1.0D) {
-            forward /= length;
-            strafe /= length;
-        }
+        double length = Math.sqrt(forward * forward + strafe * strafe + vertical * vertical);
+        if (length == 0.0D) return;
+        forward /= length;
+        strafe /= length;
+        vertical /= length;
 
         double speed = BASE_SPEED * (client.options.keySprint.isDown() ? SPRINT_MULTIPLIER : 1.0D);
         double yaw = Math.toRadians(camera.getYRot());
