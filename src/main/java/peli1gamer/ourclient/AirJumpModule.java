@@ -19,9 +19,16 @@ public final class AirJumpModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        if (!enabled || client.options == null) return;
 
         boolean jump = client.options.keyJump.isDown();
+        if (client.screen != null || client.player == null) {
+            // Keep edge detection synchronized while a GUI is open so a held
+            // key does not become a fresh press when gameplay resumes.
+            previousJump = jump;
+            return;
+        }
+
         if (jump && !previousJump && !client.player.onGround()) {
             Vec3 velocity = client.player.getDeltaMovement();
             client.player.setDeltaMovement(velocity.x, 0.42D, velocity.z);
