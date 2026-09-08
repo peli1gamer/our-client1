@@ -63,10 +63,6 @@ public final class FreecamModule implements ToggleableModule {
         }
 
         LocalPlayer player = client.player;
-
-        // Let Minecraft's normal mouse handling calculate the same rotation deltas
-        // it would use in ordinary gameplay, then transfer those deltas to the
-        // free camera and put the real player back at its original rotation.
         float playerYaw = player.getYRot();
         float playerPitch = player.getXRot();
         float yawDelta = wrapDegrees(playerYaw - lockedPlayerYaw);
@@ -81,7 +77,9 @@ public final class FreecamModule implements ToggleableModule {
 
         freezePlayerInput(player);
         updateMovement(client);
-        syncCameraTransform();
+        // Keep xo/yo/zo untouched. Minecraft uses the previous transform for
+        // render interpolation; overwriting it every tick causes visible 20 Hz
+        // snapping and makes the camera feel choppy.
     }
 
     private void enter(Minecraft client) {
@@ -103,11 +101,7 @@ public final class FreecamModule implements ToggleableModule {
         camera.setInvisible(true);
         camera.setYRot(lockedPlayerYaw);
         camera.setXRot(lockedPlayerPitch);
-        syncCameraTransform();
         client.setCameraEntity(camera);
-
-        // Use Minecraft's normal cursor grabbing rather than manually moving the
-        // GLFW cursor every tick. This avoids jitter and over-rotation.
         client.mouseHandler.grabMouse();
     }
 
@@ -181,23 +175,9 @@ public final class FreecamModule implements ToggleableModule {
         double yaw = Math.toRadians(camera.getYRot());
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
-
-        // Minecraft yaw is 0 south and increases toward west. The right/strafe
-        // vector therefore has a negative Z component at positive yaw. The old
-        // formula used +sin here, which made A and D appear mirrored as the camera
-        // turned. Keep forward/backward unchanged and correct only the strafe axis.
         double mx = strafe * cos - forward * sin;
         double mz = -strafe * sin + forward * cos;
         camera.setPos(camera.getX() + mx * speed, camera.getY() + vertical * speed, camera.getZ() + mz * speed);
-    }
-
-    private void syncCameraTransform() {
-        if (camera == null) return;
-        camera.xo = camera.getX();
-        camera.yo = camera.getY();
-        camera.zo = camera.getZ();
-        camera.xRotO = camera.getXRot();
-        camera.yRotO = camera.getYRot();
     }
 
     private static float wrapDegrees(float value) {
