@@ -123,7 +123,8 @@ public final class XrayModule implements ToggleableModule {
     private void render(WorldRenderContext context) {
         if (!enabled || matches.isEmpty() || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.getCameraEntity() == null) return;
+        if (mc.player == null || !mc.player.isAlive() || mc.screen != null || mc.level == null
+                || mc.getCameraEntity() == null || mc.getCameraEntity().level() != mc.level) return;
 
         try {
             List<BlockPos> snapshot = List.copyOf(matches);
