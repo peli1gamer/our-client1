@@ -10,14 +10,15 @@ import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 import java.util.Random;
 
 /** Places an end crystal on the crosshair block and breaks a crosshair crystal while enabled. */
 public final class CrystalMacroModule implements ToggleableModule {
+    private static final double MAX_BREAK_RANGE = 3.0D;
     private final Random random = new Random();
     private boolean enabled;
     private int placeDelay;
@@ -117,6 +118,8 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (breakDelay > 0) return;
         Entity entity = hit.getEntity();
         if (!(entity instanceof EndCrystal) || !entity.isAlive()) return;
+        if (entity.level() != mc.level || mc.player.distanceToSqr(entity) > MAX_BREAK_RANGE * MAX_BREAK_RANGE) return;
+        if (!mc.player.hasLineOfSight(entity)) return;
 
         mc.gameMode.attack(mc.player, entity);
         mc.player.resetAttackStrengthTicker();
