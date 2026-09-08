@@ -1,4 +1,4 @@
-name: Build Our Client
+name: Build Arson Client
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
-          name: our-client1-${{ github.sha }}
+          name: arson-client-${{ github.sha }}
           path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 30
