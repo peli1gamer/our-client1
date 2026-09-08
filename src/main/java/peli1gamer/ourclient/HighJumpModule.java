@@ -19,9 +19,14 @@ public final class HighJumpModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        if (!enabled || client.options == null) return;
 
         boolean jump = client.options.keyJump.isDown();
+        if (client.screen != null || client.player == null) {
+            previousJump = jump;
+            return;
+        }
+
         if (jump && !previousJump && client.player.onGround()) {
             Vec3 velocity = client.player.getDeltaMovement();
             client.player.setDeltaMovement(velocity.x, 0.75D, velocity.z);
