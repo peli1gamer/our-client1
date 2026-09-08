@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,7 @@ public final class XrayModule implements ToggleableModule {
     private static XrayModule active;
     private boolean enabled;
     private int scanTimer;
+    private ClientLevel trackedLevel;
     private final List<BlockPos> matches = new ArrayList<>();
 
     public XrayModule() { installHook(); }
@@ -38,16 +40,27 @@ public final class XrayModule implements ToggleableModule {
         if (enabled) {
             active = this;
             scanTimer = 0;
+            trackedLevel = null;
+            matches.clear();
         } else if (active == this) {
             active = null;
             matches.clear();
             scanTimer = 0;
+            trackedLevel = null;
         }
     }
 
     @Override
     public void onClientTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive() || mc.screen != null) return;
+
+        if (trackedLevel != mc.level) {
+            // Never carry ore positions from a previous world/dimension into the new one.
+            trackedLevel = mc.level;
+            matches.clear();
+            scanTimer = 0;
+        }
+
         if (scanTimer > 0) {
             scanTimer--;
             return;
