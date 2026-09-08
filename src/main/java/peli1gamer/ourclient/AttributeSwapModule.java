@@ -13,6 +13,7 @@ public final class AttributeSwapModule implements ToggleableModule {
     private boolean onlyWhenAttacking = true;
     private int previousSlot = -1;
     private int activeWeaponSlot = -1;
+    private LocalPlayer activePlayer;
 
     @Override public String id() { return "attribute-swap"; }
     @Override public boolean enabled() { return enabled; }
@@ -25,8 +26,10 @@ public final class AttributeSwapModule implements ToggleableModule {
         if (enabled) {
             previousSlot = -1;
             activeWeaponSlot = -1;
+            activePlayer = mc.player;
         } else {
             restore(mc.player);
+            activePlayer = null;
         }
     }
 
@@ -35,6 +38,14 @@ public final class AttributeSwapModule implements ToggleableModule {
         if (!enabled || mc.player == null || mc.level == null || mc.screen != null || !mc.player.isAlive()) {
             if (enabled && mc.screen != null) restore(mc.player);
             return;
+        }
+
+        if (activePlayer != mc.player) {
+            // A respawn/world transition gives us a different inventory owner.
+            // Never apply the old player's saved slot to the new player.
+            previousSlot = -1;
+            activeWeaponSlot = -1;
+            activePlayer = mc.player;
         }
 
         boolean attacking = mc.options.keyAttack.isDown();
