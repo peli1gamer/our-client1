@@ -105,6 +105,10 @@ public final class OurClient implements ClientModInitializer {
         setEnabled("auto-schematic-builder", config.schematicBuilder);
         setEnabled("saved-bases", config.savedBases);
         setEnabled("scaffold", config.scaffold);
+        setEnabled("step", config.step);
+        setEnabled("no-fall", config.noFall);
+        ClientModule step = MODULES.get("step");
+        if (step instanceof StepModule stepModule) stepModule.setHeight(config.stepHeight);
     }
 
     private static void setEnabled(String id, boolean enabled) {
@@ -130,6 +134,10 @@ public final class OurClient implements ClientModInitializer {
         config.schematicBuilder = enabled("auto-schematic-builder");
         config.savedBases = enabled("saved-bases");
         config.scaffold = enabled("scaffold");
+        config.step = enabled("step");
+        config.noFall = enabled("no-fall");
+        ClientModule step = MODULES.get("step");
+        if (step instanceof StepModule stepModule) config.stepHeight = stepModule.height();
     }
 
     private static boolean enabled(String id) {
