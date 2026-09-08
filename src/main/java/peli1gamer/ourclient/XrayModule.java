@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.List;
 public final class XrayModule implements ToggleableModule {
     private static final int RADIUS = 20;
     private static final int SCAN_INTERVAL_TICKS = 20;
+    private static final int MAX_RENDERED_BLOCKS = 512;
     private static boolean hookInstalled;
     private static XrayModule active;
     private boolean enabled;
@@ -39,12 +41,13 @@ public final class XrayModule implements ToggleableModule {
         } else if (active == this) {
             active = null;
             matches.clear();
+            scanTimer = 0;
         }
     }
 
     @Override
     public void onClientTick(Minecraft mc) {
-        if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive()) return;
+        if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive() || mc.screen != null) return;
         if (scanTimer > 0) {
             scanTimer--;
             return;
@@ -52,7 +55,7 @@ public final class XrayModule implements ToggleableModule {
         scanTimer = SCAN_INTERVAL_TICKS;
 
         try {
-            matches.clear();
+            List<BlockPos> next = new ArrayList<>();
             BlockPos origin = mc.player.blockPosition();
             int minY = Math.max(mc.level.getMinY(), origin.getY() - RADIUS);
             int maxY = Math.min(mc.level.getMaxY(), origin.getY() + RADIUS);
@@ -60,10 +63,12 @@ public final class XrayModule implements ToggleableModule {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = -RADIUS; z <= RADIUS; z++) {
                         BlockPos pos = origin.offset(x, y - origin.getY(), z);
-                        if (isOre(mc.level.getBlockState(pos).getBlock())) matches.add(pos.immutable());
+                        if (isOre(mc.level.getBlockState(pos).getBlock())) next.add(pos.immutable());
                     }
                 }
             }
+            matches.clear();
+            matches.addAll(next);
         } catch (RuntimeException exception) {
             matches.clear();
             enabled = false;
@@ -105,13 +110,14 @@ public final class XrayModule implements ToggleableModule {
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
+            Vec3 camera = mc.getCameraEntity().position();
             int rendered = 0;
 
             for (BlockPos pos : snapshot) {
                 if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
                 AABB box = new AABB(pos).inflate(.01);
-                emitBox(pose, buffer, box);
-                if (++rendered >= 512) break;
+                emitBox(pose, buffer, box, camera);
+                if (++rendered >= MAX_RENDERED_BLOCKS) break;
             }
         } catch (RuntimeException exception) {
             enabled = false;
@@ -122,10 +128,9 @@ public final class XrayModule implements ToggleableModule {
         }
     }
 
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
-        float minX = (float) b.minX, minY = (float) b.minY, minZ = (float) b.minZ;
-        float maxX = (float) b.maxX, maxY = (float) b.maxY, maxZ = (float) b.maxZ;
-
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, Vec3 camera) {
+        float minX = (float) (b.minX - camera.x), minY = (float) (b.minY - camera.y), minZ = (float) (b.minZ - camera.z);
+        float maxX = (float) (b.maxX - camera.x), maxY = (float) (b.maxY - camera.y), maxZ = (float) (b.maxZ - camera.z);
         line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
         line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
         line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
@@ -143,9 +148,7 @@ public final class XrayModule implements ToggleableModule {
     private static void line(PoseStack.Pose pose, VertexConsumer consumer,
                              float x1, float y1, float z1,
                              float x2, float y2, float z2) {
-        float nx = x2 - x1;
-        float ny = y2 - y1;
-        float nz = z2 - z1;
+        float nx = x2 - x1, ny = y2 - y1, nz = z2 - z1;
         consumer.addVertex(pose, x1, y1, z1)
                 .setColor(1.0f, .55f, .05f, .95f)
                 .setNormal(pose, nx, ny, nz)
