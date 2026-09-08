@@ -30,6 +30,7 @@ public final class OurClientClickGui extends Screen {
     private static final int TEXT = 0xFFECE8F5;
     private static final int MUTED = 0xFFAAA5B7;
     private static final int OFF = 0xFF666272;
+    private static final int PLANNED = 0xFFFFB15A;
 
     private static final String[] CATEGORY_NAMES = {
         "COMBAT", "MOVEMENT", "RENDER", "WORLD", "PLAYER", "UTILITY"
@@ -49,8 +50,6 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     protected void init() {
-        // 1.21.11 Screen#setInitialFocus expects a non-null listener.
-        // Explicitly clearing focus is safe and avoids the old focus crash.
         clearFocus();
         clampScroll();
     }
@@ -103,7 +102,7 @@ public final class OurClientClickGui extends Screen {
         List<ClientModule> modules = modulesForCategory();
         int enabled = 0;
         for (ClientModule module : modules) {
-            if (module instanceof ToggleableModule t && t.enabled()) enabled++;
+            if (module instanceof ToggleableModule t && !(module instanceof CatalogModule) && t.enabled()) enabled++;
         }
         g.drawString(font, enabled + " enabled  •  " + modules.size() + " modules", x + 18, top + 30, MUTED, false);
 
@@ -131,7 +130,8 @@ public final class OurClientClickGui extends Screen {
             if (y + 30 < listTop || y >= listBottom) continue;
 
             ClientModule module = modules.get(i);
-            boolean active = module instanceof ToggleableModule t && t.enabled();
+            boolean planned = module instanceof CatalogModule;
+            boolean active = module instanceof ToggleableModule t && !planned && t.enabled();
             boolean selected = i == selectedIndex;
             boolean hover = inside(mouseX, mouseY, x + 14, y, w - 28, 30);
 
@@ -140,7 +140,11 @@ public final class OurClientClickGui extends Screen {
             if (active) g.fill(x + 14, y, x + 17, y + 30, ACCENT);
 
             g.drawString(font, pretty(module.id()), x + 26, y + 9, TEXT, false);
-            g.drawString(font, active ? "ON" : "OFF", x + w - 54, y + 9, active ? ACCENT : OFF, false);
+            if (planned) {
+                g.drawString(font, "PLANNED", x + w - 76, y + 9, PLANNED, false);
+            } else {
+                g.drawString(font, active ? "ON" : "OFF", x + w - 54, y + 9, active ? ACCENT : OFF, false);
+            }
         }
 
         if (maxScroll > 0) {
@@ -153,7 +157,6 @@ public final class OurClientClickGui extends Screen {
             int thumbY = trackTop + (maxScroll == 0 ? 0 : thumbTravel * scroll / maxScroll);
             g.fill(trackX, trackTop, trackX + 3, trackBottom, ROW);
             g.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
-            g.drawString(font, "SCROLL", x + w - 55, listBottom - 9, MUTED, false);
         }
     }
 
@@ -178,6 +181,12 @@ public final class OurClientClickGui extends Screen {
         g.drawString(font, "MODULE SETTINGS", x + 18, y + 32, MUTED, false);
         g.drawString(font, "ESC closes", x + w - 82, y + 20, MUTED, false);
 
+        if (module instanceof CatalogModule) {
+            g.drawString(font, "This module is planned and not implemented yet.", x + 18, y + 66, PLANNED, false);
+            g.drawString(font, "It is intentionally non-functional in this build.", x + 18, y + 84, MUTED, false);
+            return;
+        }
+
         int row = y + 54;
         if (module instanceof ToggleableModule t) {
             setting(g, x, row, w, "Enabled", t.enabled() ? "ON" : "OFF");
@@ -189,13 +198,10 @@ public final class OurClientClickGui extends Screen {
             setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange));
             row += 38;
             setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
-            row += 38;
         } else if (c != null && settingsId.equals("auto-schematic-builder")) {
             setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
-            row += 38;
         } else {
             g.drawString(font, "No adjustable settings yet.", x + 18, row + 9, MUTED, false);
-            row += 38;
         }
 
         if (editingSetting != null) {
@@ -208,6 +214,7 @@ public final class OurClientClickGui extends Screen {
     private int settingsHeight() {
         if (settingsId != null && settingsId.equals("aim-assist")) return 190;
         if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
+        if (settingsId != null && OurClient.modules().get(settingsId) instanceof CatalogModule) return 135;
         return 135;
     }
 
@@ -288,16 +295,21 @@ public final class OurClientClickGui extends Screen {
             int y = listTop + (i - scroll) * rowH;
             if (!inside(mx, my, contentX + 14, y, contentW - 28, 30)) continue;
             selectedIndex = i;
-            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && modules.get(i) instanceof ToggleableModule t) {
-                toggle(modules.get(i).id(), t);
+            ClientModule module = modules.get(i);
+            if (module instanceof CatalogModule) return true;
+            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule t) {
+                toggle(module.id(), t);
             } else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
-                settingsId = modules.get(i).id();
+                settingsId = module.id();
                 editingSetting = null;
             }
             return true;
         }
 
-        return super.mouseClicked(event, doubled);
+        // Never delegate unhandled clicks to Screen's focus machinery. This GUI
+        // intentionally owns all pointer handling and this avoids the historical
+        // mouseClicked/focus crash path.
+        return true;
     }
 
     private boolean handleSettingsClick(double mx, double my) {
@@ -318,6 +330,7 @@ public final class OurClientClickGui extends Screen {
             editingSetting = null;
             return true;
         }
+        if (module instanceof CatalogModule) return true;
 
         int row = y + 54;
         if (module instanceof ToggleableModule t) {
@@ -369,7 +382,6 @@ public final class OurClientClickGui extends Screen {
         if (maxScroll > 0) {
             int amount = vertical > 0 ? -1 : 1;
             scroll = Math.max(0, Math.min(maxScroll, scroll + amount));
-            return true;
         }
         return true;
     }
@@ -441,15 +453,17 @@ public final class OurClientClickGui extends Screen {
         }
         if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) {
             ClientModule m = modules.get(selectedIndex);
-            if (m instanceof ToggleableModule t) toggle(m.id(), t);
+            if (!(m instanceof CatalogModule) && m instanceof ToggleableModule t) toggle(m.id(), t);
             return true;
         }
         if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) {
-            settingsId = modules.get(selectedIndex).id();
-            editingSetting = null;
+            if (!(modules.get(selectedIndex) instanceof CatalogModule)) {
+                settingsId = modules.get(selectedIndex).id();
+                editingSetting = null;
+            }
             return true;
         }
-        return super.keyPressed(event);
+        return true;
     }
 
     private void ensureSelectionVisible(int size) {
@@ -473,7 +487,7 @@ public final class OurClientClickGui extends Screen {
             scroll = 0;
             return true;
         }
-        return super.charTyped(event);
+        return true;
     }
 
     private static boolean inside(double mx, double my, int x, int y, int w, int h) {
