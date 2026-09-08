@@ -11,12 +11,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lightweight ore overlay. Scans a bounded area and renders through Fabric's world consumers. */
+/** Lightweight ore overlay using Fabric's world extraction/buffer path. */
 public final class XrayModule implements ToggleableModule {
     private static final int RADIUS = 20;
     private static final int SCAN_INTERVAL_TICKS = 20;
@@ -102,20 +101,20 @@ public final class XrayModule implements ToggleableModule {
         if (mc.player == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
-            List<Box> boxes = new ArrayList<>(Math.min(matches.size(), 2048));
-            for (BlockPos pos : matches) {
-                if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
-                AABB box = new AABB(pos).move(-camera.x, -camera.y, -camera.z).inflate(.01);
-                boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
-                        (float) box.maxX, (float) box.maxY, (float) box.maxZ));
-                if (boxes.size() >= 2048) break;
-            }
-            if (boxes.isEmpty()) return;
-
+            List<BlockPos> snapshot = List.copyOf(matches);
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
-            emitBoxes(context.matrices().last(), buffer, boxes);
+            PoseStack.Pose pose = context.matrices().last();
+            int rendered = 0;
+
+            // The world render pose is already camera-relative; use world-space
+            // block coordinates rather than translating by the camera twice.
+            for (BlockPos pos : snapshot) {
+                if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
+                AABB box = new AABB(pos).inflate(.01);
+                emitBox(pose, buffer, box);
+                if (++rendered >= 512) break;
+            }
         } catch (RuntimeException exception) {
             enabled = false;
             if (active == this) active = null;
@@ -125,27 +124,23 @@ public final class XrayModule implements ToggleableModule {
         }
     }
 
-    private static void emitBoxes(PoseStack.Pose pose, VertexConsumer consumer, List<Box> boxes) {
-        for (Box b : boxes) {
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.maxX, b.minY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.minY, b.maxZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.minX, b.minY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.minY, b.minZ);
-            line(pose, consumer, b.minX, b.maxY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.maxY, b.minZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.maxX, b.maxY, b.maxZ, b.minX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.maxY, b.maxZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.maxY, b.maxZ);
-        }
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.maxZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.minZ);
+        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
+        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
+        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
     }
 
     private static void line(PoseStack.Pose pose, VertexConsumer consumer, float x1, float y1, float z1, float x2, float y2, float z2) {
         consumer.addVertex(pose, x1, y1, z1).setColor(1.0f, .55f, .05f, .95f).setNormal(pose, 0, 1, 0);
         consumer.addVertex(pose, x2, y2, z2).setColor(1.0f, .55f, .05f, .95f).setNormal(pose, 0, 1, 0);
     }
-
-    private record Box(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {}
 }
