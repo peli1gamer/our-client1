@@ -9,7 +9,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -35,7 +34,11 @@ public final class OurClientClickGui extends Screen {
     public OurClientClickGui() { super(Component.literal("Arson Client")); }
 
     @Override
-    protected void init() { setInitialFocus(null); }
+    protected void init() {
+        // Do not call setInitialFocus(null). In 1.21.11 Screen#setInitialFocus
+        // expects a non-null event listener and dereferences it internally.
+        clearFocus();
+    }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
@@ -79,7 +82,7 @@ public final class OurClientClickGui extends Screen {
         if (module == null) { settingsId = null; return; }
         int w = Math.min(430, width - 36), h = settingsHeight();
         int x = (width - w) / 2, y = (height - h) / 2;
-        g.fill(x, y, x + w, y + h, 0xF2181822);
+        g.fill(x, y, x + w, y + h, PANEL);
         g.fill(x, y, x + w, y + 3, ACCENT);
         g.drawString(font, pretty(settingsId) + " settings", x + 18, y + 16, TEXT, false);
         g.drawString(font, "ESC closes this panel", x + 18, y + 32, MUTED, false);
@@ -115,6 +118,7 @@ public final class OurClientClickGui extends Screen {
             int cat = categoryFor(module);
             if (cat == category && (search.isBlank() || pretty(module.id()).toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT)))) result.add(module);
         }
+        if (selectedIndex >= result.size()) selectedIndex = Math.max(0, result.size() - 1);
         return result;
     }
 
@@ -122,7 +126,7 @@ public final class OurClientClickGui extends Screen {
         if (module instanceof CatalogModule catalog) return catalog.category().ordinal();
         return switch (module.id()) {
             case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
-            case "auto-walk", "auto-jump", "air-jump", "sprint", "freecam" -> 1;
+            case "auto-walk", "auto-jump", "air-jump", "sprint", "freecam", "high-jump", "bunny-hop" -> 1;
             case "tracers", "esp", "xray", "fullbright" -> 2;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
             default -> 4;
