@@ -23,7 +23,7 @@ public final class OurClientClickGui extends Screen {
     private static final int TEXT = 0xFFECE8F5;
     private static final int MUTED = 0xFFAAA5B7;
 
-    private final String[] categoryNames = {"COMBAT", "VISUAL", "MOVEMENT", "WORLD", "CLIENT"};
+    private static final String[] CATEGORY_NAMES = {"COMBAT", "MOVEMENT", "RENDER", "WORLD", "PLAYER", "UTILITY"};
     private int category;
     private int selectedIndex;
     private String search = "";
@@ -36,21 +36,21 @@ public final class OurClientClickGui extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         g.fill(0, 0, width, height, BG);
-        int left = 18, top = 18, sidebar = Math.min(150, Math.max(120, width / 4));
+        int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
         g.fill(left, top, left + sidebar, height - 18, PANEL);
         g.fill(left, top, left + 4, height - 18, ACCENT);
         g.drawString(font, "ARSON CLIENT", left + 16, top + 16, TEXT, false);
         g.drawString(font, "Modules", left + 16, top + 32, MUTED, false);
-        for (int i = 0; i < categoryNames.length; i++) {
-            int y = top + 54 + i * 34;
+        for (int i = 0; i < CATEGORY_NAMES.length; i++) {
+            int y = top + 54 + i * 31;
             boolean active = i == category;
-            boolean hover = inside(mouseX, mouseY, left + 8, y, sidebar - 16, 29);
-            g.fill(left + 8, y, left + sidebar - 8, y + 29, active ? SELECTED : (hover ? HOVER : ROW));
-            g.drawString(font, categoryNames[i], left + 18, y + 9, TEXT, false);
+            boolean hover = inside(mouseX, mouseY, left + 8, y, sidebar - 16, 27);
+            g.fill(left + 8, y, left + sidebar - 8, y + 27, active ? SELECTED : (hover ? HOVER : ROW));
+            g.drawString(font, CATEGORY_NAMES[i], left + 18, y + 8, TEXT, false);
         }
         int contentX = left + sidebar + 18, contentW = width - contentX - 18;
         g.fill(contentX, top, contentX + contentW, height - 18, PANEL);
-        g.drawString(font, categoryNames[category], contentX + 18, top + 14, TEXT, false);
+        g.drawString(font, CATEGORY_NAMES[category], contentX + 18, top + 14, TEXT, false);
         g.drawString(font, "Left/right: category   Up/down: module   Enter: toggle   O: settings", contentX + 18, top + 30, MUTED, false);
         int searchY = top + 48;
         g.fill(contentX + 14, searchY, contentX + contentW - 14, searchY + 30, ROW);
@@ -114,22 +114,27 @@ public final class OurClientClickGui extends Screen {
     private List<ClientModule> modulesForCategory() {
         List<ClientModule> result = new ArrayList<>();
         for (ClientModule module : OurClient.modules().all()) {
-            int cat = switch (module.id()) {
-                case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
-                case "tracers", "esp", "xray" -> 1;
-                case "freecam" -> 2;
-                case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
-                default -> 4;
-            };
+            int cat = categoryFor(module);
             if (cat == category && (search.isBlank() || pretty(module.id()).toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT)))) result.add(module);
         }
         return result;
     }
 
+    private static int categoryFor(ClientModule module) {
+        if (module instanceof CatalogModule catalog) return catalog.category().ordinal();
+        return switch (module.id()) {
+            case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap" -> 0;
+            case "tracers", "esp", "xray" -> 2;
+            case "freecam" -> 1;
+            case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
+            default -> 4;
+        };
+    }
+
     @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         double mx = event.x(), my = event.y(); int button = event.button();
-        int left = 18, top = 18, sidebar = Math.min(150, Math.max(120, width / 4));
-        for (int i = 0; i < categoryNames.length; i++) { int y = top + 54 + i * 34; if (inside(mx, my, left + 8, y, sidebar - 16, 29)) { category = i; selectedIndex = 0; return true; } }
+        int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
+        for (int i = 0; i < CATEGORY_NAMES.length; i++) { int y = top + 54 + i * 31; if (inside(mx, my, left + 8, y, sidebar - 16, 27)) { category = i; selectedIndex = 0; return true; } }
         int contentX = left + sidebar + 18, contentW = width - contentX - 18, searchY = top + 48;
         if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; settingsId = null; return true; }
         if (settingsId != null) return handleSettingsClick(mx, my);
@@ -171,8 +176,8 @@ public final class OurClientClickGui extends Screen {
         if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) { adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true; }
         if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); return true; }
         List<ClientModule> modules = modulesForCategory();
-        if (key == GLFW.GLFW_KEY_LEFT) { category = (category + categoryNames.length - 1) % categoryNames.length; selectedIndex = 0; return true; }
-        if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % categoryNames.length; selectedIndex = 0; return true; }
+        if (key == GLFW.GLFW_KEY_LEFT) { category = (category + CATEGORY_NAMES.length - 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
+        if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
         if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { selectedIndex = (selectedIndex + modules.size() - 1) % modules.size(); return true; }
         if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { selectedIndex = (selectedIndex + 1) % modules.size(); return true; }
         if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule t) toggle(m.id(), t); return true; }
