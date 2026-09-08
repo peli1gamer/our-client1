@@ -72,7 +72,10 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null
                 || client.screen != null) return;
-        if (!client.player.isAlive()) return;
+        if (!client.player.isAlive()) {
+            restoreSelectedSlot();
+            return;
+        }
 
         if (activePlayer != null && activePlayer != client.player) {
             restoreSelectedSlot();
@@ -189,9 +192,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) return index;
-            if (client.level.getBlockState(target).equals(entry.state()) || hasReachableSupport(client, target)) {
-                return index;
-            }
+            if (client.level.getBlockState(target).equals(entry.state()) || hasReachableSupport(client, target)) return index;
         }
         cursor = (cursor + limit) % size;
         return -1;
@@ -205,10 +206,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (!client.level.isInWorldBounds(support)) continue;
             if (!client.level.getBlockState(support).isSolidRender()) continue;
             Direction face = supportDirection.getOpposite();
-            Vec3 hit = Vec3.atCenterOf(support).add(
-                    face.getStepX() * 0.49,
-                    face.getStepY() * 0.49,
-                    face.getStepZ() * 0.49);
+            Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
             if (eye.distanceToSqr(hit) <= maxRangeSquared) return true;
         }
         return false;
@@ -226,19 +224,15 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         try {
             Files.createDirectories(directory);
             if (!Files.exists(file)) {
-                Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n",
-                        StandardOpenOption.CREATE_NEW);
+                Files.writeString(file, "{\n  \"name\": \"example\",\n  \"blocks\": []\n}\n", StandardOpenOption.CREATE_NEW);
                 schematic = null;
                 loaded = false;
                 client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                        "Created empty schematic at config/our-client1/schematics/" + requestedFile
-                                + ". Add blocks before enabling the builder."), true);
+                        "Created empty schematic at config/our-client1/schematics/" + requestedFile + ". Add blocks before enabling the builder."), true);
                 return;
             }
             long size = Files.size(file);
-            if (size > MAX_SCHEMATIC_FILE_BYTES) {
-                throw new IllegalArgumentException("Schematic file is too large (max 8 MiB)");
-            }
+            if (size > MAX_SCHEMATIC_FILE_BYTES) throw new IllegalArgumentException("Schematic file is too large (max 8 MiB)");
             String json = Files.readString(file);
             Schematic parsed = Schematic.parse(json, requestedFile);
             if (parsed.blocks().isEmpty()) {
@@ -255,8 +249,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             loaded = false;
             String message = exception.getMessage();
             if (message == null || message.isBlank()) message = "Invalid schematic format";
-            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "Schematic error: " + message), true);
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Schematic error: " + message), true);
         }
     }
 
@@ -275,14 +268,9 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         int slot = findBlockSlot(client.player, wanted.getBlock());
         if (slot < 0) return false;
         int currentSlot = client.player.getInventory().getSelectedSlot();
-        if (activePlacementSlot < 0) {
-            previousSelectedSlot = currentSlot;
-        } else if (currentSlot != activePlacementSlot) {
-            previousSelectedSlot = currentSlot;
-        }
-        if (currentSlot != slot) {
-            client.player.getInventory().setSelectedSlot(slot);
-        }
+        if (activePlacementSlot < 0) previousSelectedSlot = currentSlot;
+        else if (currentSlot != activePlacementSlot) previousSelectedSlot = currentSlot;
+        if (currentSlot != slot) client.player.getInventory().setSelectedSlot(slot);
         activePlacementSlot = slot;
 
         double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
@@ -292,13 +280,10 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (!client.level.isInWorldBounds(support)) continue;
             if (!client.level.getBlockState(support).isSolidRender()) continue;
             Direction face = supportDirection.getOpposite();
-            Vec3 hit = Vec3.atCenterOf(support).add(
-                    face.getStepX() * 0.49,
-                    face.getStepY() * 0.49,
-                    face.getStepZ() * 0.49);
+            Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
             if (eye.distanceToSqr(hit) > maxRangeSquared) continue;
-            BlockHitResult result = new BlockHitResult(hit, face, support, false);
-            InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, result);
+            InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND,
+                    new BlockHitResult(hit, face, support, false));
             if (action.consumesAction()) {
                 client.player.swing(InteractionHand.MAIN_HAND);
                 return true;
@@ -318,8 +303,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private void restoreSelectedSlot() {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && previousSelectedSlot >= 0 && previousSelectedSlot < 9
-                && activePlacementSlot >= 0
-                && client.player.getInventory().getSelectedSlot() == activePlacementSlot) {
+                && activePlacementSlot >= 0 && client.player.getInventory().getSelectedSlot() == activePlacementSlot) {
             client.player.getInventory().setSelectedSlot(previousSelectedSlot);
         }
         previousSelectedSlot = -1;
@@ -329,9 +313,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private void sortBlocks() {
         if (schematic == null) return;
         List<Schematic.BlockEntry> sorted = new ArrayList<>(schematic.blocks());
-        sorted.sort(Comparator.comparingInt(Schematic.BlockEntry::y)
-                .thenComparingInt(Schematic.BlockEntry::x)
-                .thenComparingInt(Schematic.BlockEntry::z));
+        sorted.sort(Comparator.comparingInt(Schematic.BlockEntry::y).thenComparingInt(Schematic.BlockEntry::x).thenComparingInt(Schematic.BlockEntry::z));
         schematic = new Schematic(schematic.name(), List.copyOf(sorted));
     }
 
