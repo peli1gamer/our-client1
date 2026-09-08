@@ -3,11 +3,8 @@ package peli1gamer.ourclient;
 import net.minecraft.client.Minecraft;
 
 /**
- * Base class for modules ported from Meteor's module concepts into Arson.
- *
- * The implementation deliberately uses Arson's lifecycle and settings API rather
- * than importing Meteor's runtime. This keeps ports native to Arson and lets the
- * ClickGUI, config system and fault isolation own module state.
+ * Native Arson base for modules adapted from Meteor functionality.
+ * Meteor is the behavioral reference; Arson owns the runtime, settings, GUI and config.
  */
 public abstract class ArsonMeteorModule implements ToggleableModule {
     private final String id;
@@ -18,7 +15,7 @@ public abstract class ArsonMeteorModule implements ToggleableModule {
     private boolean enabled;
 
     protected ArsonMeteorModule(ClientModuleManager.Category category, String id, String title, String description) {
-        this.category = category;
+        this.category = category == null ? ClientModuleManager.Category.MISC : category;
         this.id = id;
         this.title = title;
         this.description = description;
@@ -31,24 +28,27 @@ public abstract class ArsonMeteorModule implements ToggleableModule {
     @Override public final ModuleSettings settings() { return settings; }
     @Override public final boolean enabled() { return enabled; }
 
+    /** Single lifecycle boundary used by the manager, GUI and keybinds. */
     @Override
     public final void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
         this.enabled = enabled;
         Minecraft client = Minecraft.getInstance();
-        if (enabled) onEnable(client);
-        else onDisable(client);
+        try {
+            if (enabled) onEnable(client);
+            else onDisable(client);
+        } catch (RuntimeException exception) {
+            this.enabled = false;
+            throw exception;
+        }
     }
 
-    /** Alias matching Meteor's Module#isActive(). */
+    /** Meteor-compatible convenience aliases. */
     public final boolean isActive() { return enabled; }
-
-    /** Alias matching Meteor's Module#enable(). */
     public final void enable() { setEnabled(true); }
-
-    /** Alias matching Meteor's Module#disable(). */
     public final void disable() { setEnabled(false); }
-
-    /** Alias matching Meteor's Module#toggle(). */
     public final void toggle() { setEnabled(!enabled); }
+
+    /** Safe default for ports that need the client each tick. */
+    protected final Minecraft client() { return Minecraft.getInstance(); }
 }
