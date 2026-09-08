@@ -2,15 +2,44 @@
 
 A client-side Fabric utility client for Minecraft 1.21.11.
 
-## Included
+## Native module checklist
 
-- Smooth aim assist
-- Player tracers
-- Freecam
-- Auto schematic builder
-- Persistent saved base coordinates
-- JSON configuration
-- Arson Client fire-orange ClickGUI theme
+### Movement
+
+- [x] Auto Walk
+- [x] Auto Jump
+- [x] Air Jump
+- [x] Sprint
+- [x] Fullbright
+- [x] Auto Sprint
+- [x] Fast Climb
+- [x] Step
+- [x] No Fall
+- [ ] Speed
+- [ ] Long Jump
+- [ ] Bunny Hop
+- [ ] No Slow
+- [ ] Jesus
+- [ ] Spider
+- [ ] Flight
+- [ ] High Jump
+- [ ] Safe Walk
+
+### Other implemented modules
+
+- [x] Smooth aim assist
+- [x] Trigger bot
+- [x] Crystal macro
+- [x] Attribute swap
+- [x] Player tracers
+- [x] ESP
+- [x] Xray
+- [x] Freecam
+- [x] Auto schematic builder
+- [x] Persistent saved base coordinates
+- [x] Scaffold
+- [x] JSON configuration
+- [x] Arson Client fire-orange ClickGUI theme
 
 ## Requirements
 
@@ -28,7 +57,7 @@ A client-side Fabric utility client for Minecraft 1.21.11.
 | `F7` | Toggle auto schematic builder |
 | `V` | Save current base |
 
-Tracer is unbound by default and can be assigned in Minecraft's Controls menu.
+Module keybinds can be assigned in Minecraft's Controls menu. The ClickGUI is opened with `Right Shift`.
 
 ## Schematic builder
 
