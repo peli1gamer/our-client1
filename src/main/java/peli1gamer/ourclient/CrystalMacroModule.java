@@ -24,6 +24,7 @@ public final class CrystalMacroModule implements ToggleableModule {
     private int breakDelay;
     private int nextBreakDelay = 2;
     private int previousSlot = -1;
+    private int activeCrystalSlot = -1;
 
     @Override public String id() { return "crystal-macro"; }
     @Override public boolean enabled() { return enabled; }
@@ -34,7 +35,8 @@ public final class CrystalMacroModule implements ToggleableModule {
         this.enabled = enabled;
         Minecraft mc = Minecraft.getInstance();
         if (enabled) {
-            previousSlot = mc.player == null ? -1 : mc.player.getInventory().getSelectedSlot();
+            previousSlot = -1;
+            activeCrystalSlot = -1;
             reset();
             rollBreakDelay();
         } else {
@@ -82,7 +84,11 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (slot < 0) return;
 
         int oldSlot = mc.player.getInventory().getSelectedSlot();
-        if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(slot);
+        if (oldSlot != slot) {
+            if (activeCrystalSlot < 0) previousSlot = oldSlot;
+            mc.player.getInventory().setSelectedSlot(slot);
+            activeCrystalSlot = slot;
+        }
         try {
             InteractionResult result = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             if (result.consumesAction()) {
@@ -90,7 +96,11 @@ public final class CrystalMacroModule implements ToggleableModule {
                 placeDelay = 1;
             }
         } finally {
-            if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(oldSlot);
+            if (oldSlot != slot && activeCrystalSlot == slot) {
+                mc.player.getInventory().setSelectedSlot(oldSlot);
+                activeCrystalSlot = -1;
+                previousSlot = -1;
+            }
         }
     }
 
@@ -117,9 +127,11 @@ public final class CrystalMacroModule implements ToggleableModule {
     }
 
     private void restorePreviousSlot(LocalPlayer player) {
-        if (player != null && previousSlot >= 0 && previousSlot < 9) {
+        if (player != null && previousSlot >= 0 && previousSlot < 9
+                && activeCrystalSlot >= 0 && player.getInventory().getSelectedSlot() == activeCrystalSlot) {
             player.getInventory().setSelectedSlot(previousSlot);
         }
         previousSlot = -1;
+        activeCrystalSlot = -1;
     }
 }
