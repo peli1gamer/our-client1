@@ -18,7 +18,6 @@ public final class TracersModule implements ToggleableModule {
     private boolean enabled;
 
     public TracersModule() { installRenderHook(); }
-
     @Override public String id() { return "tracers"; }
     @Override public boolean enabled() { return enabled; }
 
@@ -41,7 +40,8 @@ public final class TracersModule implements ToggleableModule {
     private void render(WorldRenderContext context) {
         if (!enabled || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
+        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null
+                || mc.getCameraEntity().level() != mc.level) return;
 
         try {
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
@@ -68,11 +68,8 @@ public final class TracersModule implements ToggleableModule {
             ClientConfig config = OurClient.config();
             if (config != null) {
                 config.tracers = false;
-                try {
-                    OurClient.syncAndSaveConfigFromModules();
-                } catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Could not persist disabled tracers state", saveException);
-                }
+                try { OurClient.syncAndSaveConfigFromModules(); }
+                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist disabled tracers state", saveException); }
             }
         }
     }
