@@ -50,6 +50,11 @@ public final class SavedBasesModule implements ToggleableModule {
 
     public void saveCurrentBase(Minecraft client, String name) {
         if (!enabled || client.player == null || client.level == null || name == null || name.isBlank()) return;
+        if (!loaded) {
+            client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "Saved bases are still loading. Try again in a moment."), true);
+            return;
+        }
         String normalizedName = name.trim();
         if (normalizedName.length() > MAX_NAME_LENGTH) {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal("Base name is too long."), true);
