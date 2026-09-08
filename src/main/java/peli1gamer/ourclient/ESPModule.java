@@ -53,7 +53,7 @@ public final class ESPModule implements ToggleableModule {
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
-                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
+                if (camera.distanceToSqr(target.position()) > maxRangeSquared) continue;
                 emitBox(pose, buffer, target.getBoundingBox(), camera);
             }
         } catch (RuntimeException exception) {
