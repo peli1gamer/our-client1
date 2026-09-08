@@ -103,7 +103,13 @@ public final class XrayModule implements ToggleableModule {
         try {
             List<BlockPos> snapshot = List.copyOf(matches);
             MultiBufferSource consumers = context.consumers();
-            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+
+            // RenderTypes.lines() in this Minecraft version requires a LineWidth
+            // vertex element. VertexConsumer does not expose that element, so using
+            // it directly leaves incomplete vertices and crashes during upload.
+            // The debug line strip render type supplies its width through the render
+            // state and is safe for this extraction path.
+            VertexConsumer buffer = consumers.getBuffer(RenderTypes.debugLineStrip(1.5));
             PoseStack.Pose pose = context.matrices().last();
             int rendered = 0;
 
@@ -124,23 +130,34 @@ public final class XrayModule implements ToggleableModule {
         }
     }
 
+    /** Emits one box as a single line-strip path, with duplicated transition vertices. */
     private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.maxZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.minZ);
-        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
+        float minX = (float) b.minX, minY = (float) b.minY, minZ = (float) b.minZ;
+        float maxX = (float) b.maxX, maxY = (float) b.maxY, maxZ = (float) b.maxZ;
+
+        lineStrip(pose, consumer,
+                minX, minY, minZ, maxX, minY, minZ,
+                maxX, minY, maxZ, minX, minY, maxZ, minX, minY, minZ,
+                minX, maxY, minZ, maxX, maxY, minZ, maxX, maxY, maxZ,
+                minX, maxY, maxZ, minX, maxY, minZ,
+                minX, minY, minZ, minX, maxY, minZ,
+                maxX, maxY, minZ, maxX, minY, minZ,
+                maxX, minY, maxZ, maxX, maxY, maxZ,
+                minX, maxY, maxZ, minX, minY, maxZ);
     }
 
-    private static void line(PoseStack.Pose pose, VertexConsumer consumer, float x1, float y1, float z1, float x2, float y2, float z2) {
-        consumer.addVertex(pose, x1, y1, z1).setColor(1.0f, .55f, .05f, .95f).setNormal(pose, 0, 1, 0);
-        consumer.addVertex(pose, x2, y2, z2).setColor(1.0f, .55f, .05f, .95f).setNormal(pose, 0, 1, 0);
+    private static void lineStrip(PoseStack.Pose pose, VertexConsumer consumer, float... p) {
+        for (int i = 0; i < p.length; i += 3) {
+            float x = p[i], y = p[i + 1], z = p[i + 2];
+            float nx = 0.0f, ny = 1.0f, nz = 0.0f;
+            if (i + 5 < p.length) {
+                nx = p[i + 3] - x;
+                ny = p[i + 4] - y;
+                nz = p[i + 5] - z;
+            }
+            consumer.addVertex(pose, x, y, z)
+                    .setColor(1.0f, .55f, .05f, .95f)
+                    .setNormal(pose, nx, ny, nz);
+        }
     }
 }
