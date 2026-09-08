@@ -78,8 +78,15 @@ public final class ScaffoldModule implements ToggleableModule {
         int slot = findBlockSlot(client.player);
         if (slot < 0) return false;
         int oldSlot = client.player.getInventory().getSelectedSlot();
-        if (activePlacementSlot < 0) activePlacementSlot = slot;
-        client.player.getInventory().setSelectedSlot(slot);
+        boolean changedSlot = oldSlot != slot;
+        if (changedSlot) {
+            // This is a short-lived interaction. Do not retain ownership after the
+            // slot has been restored, otherwise disabling Scaffold later could undo
+            // a manual selection made after this placement.
+            if (activePlacementSlot < 0) previousSlot = oldSlot;
+            activePlacementSlot = slot;
+            client.player.getInventory().setSelectedSlot(slot);
+        }
         try {
             Vec3 eye = client.player.getEyePosition();
             Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
@@ -92,7 +99,14 @@ public final class ScaffoldModule implements ToggleableModule {
             }
             return false;
         } finally {
-            client.player.getInventory().setSelectedSlot(oldSlot);
+            if (changedSlot) {
+                client.player.getInventory().setSelectedSlot(oldSlot);
+                // Ownership ends with the synchronous interaction. Keeping these
+                // fields populated would make a later manual slot selection look
+                // like a slot still owned by Scaffold.
+                activePlacementSlot = -1;
+                previousSlot = -1;
+            }
         }
     }
 
