@@ -13,9 +13,12 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/** Arson Client bootstrap and integration point. */
 public final class OurClient implements ClientModInitializer {
     public static final String MOD_ID = "our-client1";
-    public static final Logger LOGGER = LoggerFactory.getLogger("Arson Client");
+    public static final String CLIENT_NAME = "Arson Client";
+    public static final String CLIENT_VERSION = "1.0.0";
+    public static final Logger LOGGER = LoggerFactory.getLogger(CLIENT_NAME);
     private static final ClientModuleManager MODULES = new ClientModuleManager();
     private static final Map<String, KeyMapping> KEYBINDS = new LinkedHashMap<>();
     private static ClientConfig config;
@@ -27,7 +30,7 @@ public final class OurClient implements ClientModInitializer {
         Minecraft client = Minecraft.getInstance();
         config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
-        applyConfig();
+        applyConfig(client);
 
         registerKey("toggle_aim", GLFW.GLFW_KEY_R);
         registerKey("toggle_trigger", GLFW.GLFW_KEY_UNKNOWN);
@@ -47,7 +50,7 @@ public final class OurClient implements ClientModInitializer {
             MODULES.tick(tickClient);
         });
         initialized = true;
-        LOGGER.info("Arson Client initialized with {} modules", MODULES.size());
+        LOGGER.info("{} {} initialized with {} modules", CLIENT_NAME, CLIENT_VERSION, MODULES.size());
     }
 
     private static void registerKey(String id, int key) {
@@ -59,16 +62,16 @@ public final class OurClient implements ClientModInitializer {
     private static void handleKeybinds(Minecraft client) {
         if (client.screen != null) { discardPendingKeybinds(); return; }
         while (KEYBINDS.get("open_clickgui").consumeClick()) client.setScreen(new OurClientClickGui());
-        while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
-        while (KEYBINDS.get("toggle_trigger").consumeClick()) toggle("trigger-bot");
-        while (KEYBINDS.get("toggle_crystal").consumeClick()) toggle("crystal-macro");
-        while (KEYBINDS.get("toggle_attribute_swap").consumeClick()) toggle("attribute-swap");
-        while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers");
-        while (KEYBINDS.get("toggle_esp").consumeClick()) toggle("esp");
-        while (KEYBINDS.get("toggle_xray").consumeClick()) toggle("xray");
-        while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam");
-        while (KEYBINDS.get("toggle_schematic").consumeClick()) toggle("auto-schematic-builder");
-        while (KEYBINDS.get("toggle_scaffold").consumeClick()) toggle("scaffold");
+        while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist", client);
+        while (KEYBINDS.get("toggle_trigger").consumeClick()) toggle("trigger-bot", client);
+        while (KEYBINDS.get("toggle_crystal").consumeClick()) toggle("crystal-macro", client);
+        while (KEYBINDS.get("toggle_attribute_swap").consumeClick()) toggle("attribute-swap", client);
+        while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers", client);
+        while (KEYBINDS.get("toggle_esp").consumeClick()) toggle("esp", client);
+        while (KEYBINDS.get("toggle_xray").consumeClick()) toggle("xray", client);
+        while (KEYBINDS.get("toggle_freecam").consumeClick()) toggle("freecam", client);
+        while (KEYBINDS.get("toggle_schematic").consumeClick()) toggle("auto-schematic-builder", client);
+        while (KEYBINDS.get("toggle_scaffold").consumeClick()) toggle("scaffold", client);
         while (KEYBINDS.get("save_base").consumeClick()) {
             ClientModule module = MODULES.get("saved-bases");
             if (module instanceof SavedBasesModule bases) {
@@ -80,37 +83,26 @@ public final class OurClient implements ClientModInitializer {
 
     private static void discardPendingKeybinds() { for (KeyMapping mapping : KEYBINDS.values()) while (mapping.consumeClick()) { } }
 
-    private static void toggle(String id) {
-        ClientModule module = MODULES.get(id);
-        if (!(module instanceof ToggleableModule toggleable)) return;
-        try {
-            toggleable.setEnabled(!toggleable.enabled());
-            syncAndSaveConfigFromModules();
-        } catch (RuntimeException exception) {
-            LOGGER.error("Failed to toggle client module '{}'", id, exception);
-            try { toggleable.setEnabled(false); } catch (RuntimeException ignored) { }
-            try { syncAndSaveConfigFromModules(); } catch (RuntimeException ignored) { }
-        }
+    private static void toggle(String id, Minecraft client) {
+        MODULES.setEnabled(id, !(MODULES.get(id) instanceof ToggleableModule t && t.enabled()), client);
+        syncAndSaveConfigFromModules();
     }
 
-    private static void applyConfig() {
-        setEnabled("aim-assist", config.aimAssist);
-        setEnabled("trigger-bot", config.triggerBot);
-        setEnabled("crystal-macro", config.crystalMacro);
-        setEnabled("attribute-swap", config.attributeSwap);
-        setEnabled("tracers", config.tracers);
-        setEnabled("esp", config.esp);
-        setEnabled("xray", config.xray);
-        setEnabled("freecam", false);
-        setEnabled("auto-schematic-builder", config.schematicBuilder);
-        setEnabled("saved-bases", config.savedBases);
-        setEnabled("scaffold", config.scaffold);
+    private static void applyConfig(Minecraft client) {
+        setEnabled("aim-assist", config.aimAssist, client);
+        setEnabled("trigger-bot", config.triggerBot, client);
+        setEnabled("crystal-macro", config.crystalMacro, client);
+        setEnabled("attribute-swap", config.attributeSwap, client);
+        setEnabled("tracers", config.tracers, client);
+        setEnabled("esp", config.esp, client);
+        setEnabled("xray", config.xray, client);
+        setEnabled("freecam", false, client);
+        setEnabled("auto-schematic-builder", config.schematicBuilder, client);
+        setEnabled("saved-bases", config.savedBases, client);
+        setEnabled("scaffold", config.scaffold, client);
     }
 
-    private static void setEnabled(String id, boolean enabled) {
-        ClientModule module = MODULES.get(id);
-        if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(enabled);
-    }
+    private static void setEnabled(String id, boolean enabled, Minecraft client) { MODULES.setEnabled(id, enabled, client); }
 
     static void syncAndSaveConfigFromModules() {
         if (config == null) return;
