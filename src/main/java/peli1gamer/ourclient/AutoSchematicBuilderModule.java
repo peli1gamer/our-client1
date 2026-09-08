@@ -101,7 +101,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             BlockState wanted = entry.state();
             BlockState current = client.level.getBlockState(target);
 
-            if (current.is(wanted.getBlock())) {
+            if (current.equals(wanted)) {
                 completed.set(index);
                 cursor = (index + 1) % schematic.blocks().size();
                 madeProgress = true;
@@ -111,7 +111,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             if (retryCooldown > 0) break;
             if (place(client, target, wanted)) {
                 attempts++;
-                if (client.level.getBlockState(target).is(wanted.getBlock())) {
+                if (client.level.getBlockState(target).equals(wanted)) {
                     completed.set(index);
                     cursor = (index + 1) % schematic.blocks().size();
                     madeProgress = true;
@@ -150,7 +150,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Schematic.BlockEntry entry = schematic.blocks().get(index);
             BlockPos target = origin.offset(entry.x(), entry.y(), entry.z());
             if (!client.level.isInWorldBounds(target)) return index;
-            if (client.level.getBlockState(target).is(entry.state().getBlock()) || hasReachableSupport(client, target)) {
+            if (client.level.getBlockState(target).equals(entry.state()) || hasReachableSupport(client, target)) {
                 return index;
             }
         }
