@@ -6,17 +6,53 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 
+import java.util.Locale;
+
 public final class AimAssistModule implements ToggleableModule {
+    private final ModuleSettings settings = createSettings();
     private boolean enabled;
     private LivingEntity target;
 
     @Override public String id() { return "aim-assist"; }
+    @Override public String description() { return "Smoothly turns toward the nearest valid living entity within range."; }
     @Override public boolean enabled() { return enabled; }
 
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (!enabled) target = null;
+    }
+
+    @Override
+    public ModuleSettings settings() { return settings; }
+
+    private ModuleSettings createSettings() {
+        ModuleSettings value = new ModuleSettings();
+        value.number("range", "Range", () -> String.format(Locale.ROOT, "%.1f", range()),
+                () -> setRange(range() + 0.5f), () -> setRange(range() - 0.5f));
+        value.number("smoothness", "Smoothness", () -> String.format(Locale.ROOT, "%.2f", smoothing()),
+                () -> setSmoothing(smoothing() + 0.02f), () -> setSmoothing(smoothing() - 0.02f));
+        return value;
+    }
+
+    private float range() {
+        ClientConfig config = OurClient.config();
+        return config == null ? 12.0f : config.aimRange;
+    }
+
+    private void setRange(float value) {
+        ClientConfig config = OurClient.config();
+        if (config != null) config.aimRange = Math.max(1.0f, Math.min(64.0f, value));
+    }
+
+    private float smoothing() {
+        ClientConfig config = OurClient.config();
+        return config == null ? 0.18f : config.aimSmoothing;
+    }
+
+    private void setSmoothing(float value) {
+        ClientConfig config = OurClient.config();
+        if (config != null) config.aimSmoothing = Math.max(0.01f, Math.min(1.0f, value));
     }
 
     @Override
@@ -28,10 +64,7 @@ public final class AimAssistModule implements ToggleableModule {
             return;
         }
 
-        ClientConfig config = OurClient.config();
-        if (config == null) return;
-
-        double range = Math.max(1.0, config.aimRange);
+        double range = Math.max(1.0, range());
         if (!isValidTarget(player, target, range)) target = findTarget(client, player, range);
         if (target == null) return;
 
@@ -42,7 +75,7 @@ public final class AimAssistModule implements ToggleableModule {
         float wantedYaw = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90.0f;
         float wantedPitch = (float) -Math.toDegrees(Math.atan2(dy, horizontal));
 
-        float smoothing = Math.max(0.01f, Math.min(1.0f, config.aimSmoothing));
+        float smoothing = Math.max(0.01f, Math.min(1.0f, smoothing()));
         float newYaw = approachAngle(player.getYRot(), wantedYaw, smoothing);
         float newPitch = approachAngle(player.getXRot(), wantedPitch, smoothing);
         player.setYRot(newYaw);

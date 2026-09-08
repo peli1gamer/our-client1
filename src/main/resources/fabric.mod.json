@@ -3,7 +3,7 @@
   "id": "our-client1",
   "version": "${version}",
   "name": "Arson Client",
-  "description": "A client-side Fabric utility client.",
+  "description": "Arson Client — a standalone, extensible Fabric client with a fire-themed interface.",
   "authors": ["peli1gamer"],
   "environment": "client",
   "entrypoints": {
