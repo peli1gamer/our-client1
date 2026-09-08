@@ -15,21 +15,40 @@ public final class AutoSprintModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (!enabled) {
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player != null) player.setSprinting(false);
-        }
+        if (!enabled) stopSprinting();
     }
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        // Always clean up our state when the module cannot safely act. This prevents
+        // sprint remaining stuck when opening a screen, dying, or leaving a world.
+        if (!enabled) return;
+        if (client.player == null || client.level == null || client.screen != null) {
+            stopSprinting();
+            return;
+        }
+
         LocalPlayer player = client.player;
-        boolean moving = allDirections ? player.xxa != 0.0F || player.zza != 0.0F : player.zza > 0.0F;
+        if (!player.isAlive()) {
+            stopSprinting();
+            return;
+        }
+
+        boolean moving = allDirections
+                ? player.xxa != 0.0F || player.zza != 0.0F
+                : player.zza > 0.0F;
         boolean foodOk = !requireFood || player.getFoodData().getFoodLevel() > 6;
-        boolean canSprint = moving && foodOk && !player.isCrouching() && !player.isPassenger()
-                && !player.horizontalCollision && !player.isSpectator();
+        boolean canSprint = moving && foodOk
+                && !player.isCrouching()
+                && !player.isPassenger()
+                && !player.horizontalCollision
+                && !player.isSpectator();
         player.setSprinting(canSprint);
+    }
+
+    private void stopSprinting() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null) player.setSprinting(false);
     }
 
     @Override
