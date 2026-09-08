@@ -27,7 +27,7 @@ public final class HighJumpModule implements ToggleableModule {
             previousJump = jump;
             return;
         }
-        if (client.player.isSpectator() || client.player.isPassenger()) {
+        if (!client.player.isAlive() || client.player.isSpectator() || client.player.isPassenger()) {
             previousJump = jump;
             return;
         }
