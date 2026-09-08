@@ -40,12 +40,7 @@ public final class AutoWalkModule implements ToggleableModule {
 
     private void restoreForward(Minecraft client) {
         if (!forcedForward) return;
-        // Only restore the value we captured if the key is still in the state
-        // AutoWalk forced. If the player changed it while enabled, their input
-        // owns the key and must not be overwritten on disable.
-        if (client.options.keyUp.isDown()) {
-            client.options.keyUp.setDown(previousForward);
-        }
+        client.options.keyUp.setDown(previousForward);
         forcedForward = false;
     }
 }
