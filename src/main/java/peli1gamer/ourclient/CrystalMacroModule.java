@@ -17,6 +17,7 @@ import java.util.Random;
 
 /** Places an end crystal on the crosshair block and breaks a crosshair crystal while enabled. */
 public final class CrystalMacroModule implements ToggleableModule {
+    private static final double MAX_ACTION_DISTANCE_SQUARED = 36.0D;
     private final Random random = new Random();
     private boolean enabled;
     private int placeDelay;
@@ -65,15 +66,13 @@ public final class CrystalMacroModule implements ToggleableModule {
 
     private void tryPlace(Minecraft mc, BlockHitResult hit) {
         if (placeDelay > 0) return;
-
         BlockPos base = hit.getBlockPos();
+        if (mc.player.distanceToSqr(base.getX() + .5, base.getY() + .5, base.getZ() + .5) > MAX_ACTION_DISTANCE_SQUARED) return;
         if (!mc.level.getBlockState(base).is(Blocks.OBSIDIAN)
                 && !mc.level.getBlockState(base).is(Blocks.BEDROCK)) return;
 
         BlockPos crystalPos = base.above();
         if (!mc.level.isEmptyBlock(crystalPos) || !mc.level.isEmptyBlock(crystalPos.above())) return;
-
-        // End crystals need a clear two-block-high space and no colliding entities.
         AABB space = new AABB(crystalPos.getX(), crystalPos.getY(), crystalPos.getZ(),
                 crystalPos.getX() + 1, crystalPos.getY() + 2, crystalPos.getZ() + 1);
         if (!mc.level.getEntities((Entity) null, space).isEmpty()) return;
@@ -82,13 +81,18 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (slot < 0) return;
 
         int oldSlot = mc.player.getInventory().getSelectedSlot();
-        if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(slot);
         try {
+            if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(slot);
             mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
             mc.player.swing(InteractionHand.MAIN_HAND);
             placeDelay = 1;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.warn("Crystal Macro skipped an invalid placement", exception);
+            placeDelay = 2;
         } finally {
-            if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(oldSlot);
+            if (mc.player != null && oldSlot >= 0 && oldSlot < 9) {
+                mc.player.getInventory().setSelectedSlot(oldSlot);
+            }
         }
     }
 
@@ -96,17 +100,21 @@ public final class CrystalMacroModule implements ToggleableModule {
         if (breakDelay > 0) return;
         Entity entity = hit.getEntity();
         if (!(entity instanceof EndCrystal) || !entity.isAlive()) return;
+        if (mc.player.distanceToSqr(entity) > MAX_ACTION_DISTANCE_SQUARED) return;
 
-        mc.gameMode.attack(mc.player, entity);
-        mc.player.resetAttackStrengthTicker();
-        mc.player.swing(InteractionHand.MAIN_HAND);
-        breakDelay = nextBreakDelay;
-        rollBreakDelay();
+        try {
+            mc.gameMode.attack(mc.player, entity);
+            mc.player.resetAttackStrengthTicker();
+            mc.player.swing(InteractionHand.MAIN_HAND);
+            breakDelay = nextBreakDelay;
+            rollBreakDelay();
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.warn("Crystal Macro skipped an invalid break", exception);
+            breakDelay = 2;
+        }
     }
 
-    private void rollBreakDelay() {
-        nextBreakDelay = 1 + random.nextInt(2);
-    }
+    private void rollBreakDelay() { nextBreakDelay = 1 + random.nextInt(2); }
 
     private int findHotbar(LocalPlayer player) {
         for (int i = 0; i < 9; i++) {

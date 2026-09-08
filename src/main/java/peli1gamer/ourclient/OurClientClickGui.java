@@ -9,116 +9,185 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 
+/** Native Arson GUI with self-contained input handling. */
 public final class OurClientClickGui extends Screen {
-    private static final int BG = 0xF20B0B10;
-    private static final int PANEL = 0xF2181822;
-    private static final int ROW = 0xFF20202C;
-    private static final int HOVER = 0xFF2A2A38;
-    private static final int SELECTED = 0xFF333344;
+    private static final int BG = 0xF2090910;
+    private static final int PANEL = 0xF2161720;
+    private static final int ROW = 0xFF20212B;
+    private static final int HOVER = 0xFF2B2D39;
+    private static final int SELECTED = 0xFF353746;
     private static final int ACCENT = 0xFFFF6A00;
     private static final int TEXT = 0xFFECE8F5;
     private static final int MUTED = 0xFFAAA5B7;
 
-    private static final String[] CATEGORY_NAMES = {"COMBAT", "MOVEMENT", "RENDER", "WORLD", "PLAYER", "UTILITY"};
+    private static final String[] CATEGORIES = {"COMBAT", "MOVEMENT", "RENDER", "WORLD", "PLAYER", "UTILITY"};
+    private static final int MARGIN = 14;
+    private static final int HEADER = 48;
+    private static final int CATEGORY_W = 116;
+    private static final int CATEGORY_GAP = 4;
+    private static final int TAB_H = 25;
+    private static final int ROW_H = 27;
+    private static final int ROW_GAP = 3;
+
     private int category;
     private int selectedIndex;
-    private String search = "";
-    private boolean editingSearch;
+    private double scroll;
     private String settingsId;
     private String editingSetting;
 
-    public OurClientClickGui() { super(Component.literal("Arson Client")); }
+    public OurClientClickGui() {
+        super(Component.literal("Arson Client"));
+    }
 
     @Override
     protected void init() {
-        // Do not call setInitialFocus(null). In 1.21.11 Screen#setInitialFocus
-        // expects a non-null event listener and dereferences it internally.
         clearFocus();
+        clampScroll();
     }
+
+    private int contentTop() { return MARGIN + HEADER + 8; }
+    private int contentBottom() { return height - MARGIN; }
+    private int listLeft() { return MARGIN + CATEGORY_W + 8; }
+    private int listRight() { return Math.max(listLeft() + 180, width * 2 / 3); }
+    private int settingsLeft() { return listRight() + 8; }
+    private int viewportTop() { return contentTop() + 32; }
+    private int viewportHeight() { return Math.max(1, contentBottom() - 8 - viewportTop()); }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         g.fill(0, 0, width, height, BG);
-        int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
-        g.fill(left, top, left + sidebar, height - 18, PANEL);
-        g.fill(left, top, left + 4, height - 18, ACCENT);
-        g.drawString(font, "ARSON CLIENT", left + 16, top + 16, TEXT, false);
-        g.drawString(font, "Modules", left + 16, top + 32, MUTED, false);
-        for (int i = 0; i < CATEGORY_NAMES.length; i++) {
-            int y = top + 54 + i * 31;
-            boolean active = i == category;
-            boolean hover = inside(mouseX, mouseY, left + 8, y, sidebar - 16, 27);
-            g.fill(left + 8, y, left + sidebar - 8, y + 27, active ? SELECTED : (hover ? HOVER : ROW));
-            g.drawString(font, CATEGORY_NAMES[i], left + 18, y + 8, TEXT, false);
-        }
-        int contentX = left + sidebar + 18, contentW = width - contentX - 18;
-        g.fill(contentX, top, contentX + contentW, height - 18, PANEL);
-        g.drawString(font, CATEGORY_NAMES[category], contentX + 18, top + 14, TEXT, false);
-        g.drawString(font, "Left/right: category   Up/down: module   Enter: toggle   O: settings", contentX + 18, top + 30, MUTED, false);
-        int searchY = top + 48;
-        g.fill(contentX + 14, searchY, contentX + contentW - 14, searchY + 30, ROW);
-        String searchText = search.isEmpty() ? "Search modules..." : search;
-        g.drawString(font, searchText + (editingSearch ? "_" : ""), contentX + 24, searchY + 10, search.isEmpty() ? MUTED : TEXT, false);
+        drawHeader(g);
+        drawCategories(g, mouseX, mouseY);
         List<ClientModule> modules = modulesForCategory();
-        if (modules.isEmpty()) g.drawString(font, "No matching modules", contentX + 24, searchY + 55, MUTED, false);
-        for (int i = 0; i < modules.size(); i++) {
-            int y = searchY + 42 + i * 34;
+        clampScroll(modules.size());
+        drawModulePanel(g, mouseX, mouseY, modules);
+        drawSettingsPanel(g);
+    }
+
+    private void drawHeader(GuiGraphics g) {
+        g.fill(MARGIN, MARGIN, width - MARGIN, MARGIN + HEADER, PANEL);
+        g.fill(MARGIN, MARGIN, MARGIN + 4, MARGIN + HEADER, ACCENT);
+        g.drawString(font, "ARSON CLIENT", MARGIN + 14, MARGIN + 10, TEXT, false);
+        g.drawString(font, "Native module control", MARGIN + 14, MARGIN + 27, MUTED, false);
+    }
+
+    private void drawCategories(GuiGraphics g, int mouseX, int mouseY) {
+        int x = MARGIN;
+        int y = contentTop();
+        int bottom = contentBottom();
+        g.fill(x, y, x + CATEGORY_W, bottom, PANEL);
+        g.drawString(font, "CATEGORIES", x + 10, y + 9, MUTED, false);
+
+        int tabY = y + 27;
+        for (int i = 0; i < CATEGORIES.length; i++) {
+            boolean active = i == category;
+            boolean hover = inside(mouseX, mouseY, x + 6, tabY, CATEGORY_W - 12, TAB_H);
+            g.fill(x + 6, tabY, x + CATEGORY_W - 6, tabY + TAB_H, active ? SELECTED : (hover ? HOVER : ROW));
+            if (active) g.fill(x + 6, tabY, x + 9, tabY + TAB_H, ACCENT);
+            g.drawString(font, CATEGORIES[i], x + 15, tabY + 8, active ? TEXT : MUTED, false);
+            tabY += TAB_H + CATEGORY_GAP;
+        }
+    }
+
+    private void drawModulePanel(GuiGraphics g, int mouseX, int mouseY, List<ClientModule> modules) {
+        int left = listLeft();
+        int top = contentTop();
+        int right = listRight();
+        int bottom = contentBottom();
+        g.fill(left, top, right, bottom, PANEL);
+        g.drawString(font, CATEGORIES[category], left + 10, top + 9, TEXT, false);
+        g.drawString(font, "Scroll • Enter toggle • Right-click settings", left + 10, top + 24, MUTED, false);
+
+        int viewportBottom = bottom - 8;
+        int viewport = viewportHeight();
+        if (modules.isEmpty()) {
+            g.drawString(font, "No modules", left + 10, viewportTop() + 10, MUTED, false);
+            return;
+        }
+
+        int step = ROW_H + ROW_GAP;
+        int first = Math.max(0, (int) Math.floor(scroll / step) - 1);
+        int last = Math.min(modules.size() - 1, (int) Math.ceil((scroll + viewport) / step));
+        for (int i = first; i <= last; i++) {
+            int rowY = viewportTop() + i * step - (int) scroll;
+            if (rowY + ROW_H < viewportTop() || rowY > viewportBottom) continue;
             ClientModule module = modules.get(i);
             boolean active = module instanceof ToggleableModule t && t.enabled();
             boolean selected = i == selectedIndex;
-            g.fill(contentX + 14, y, contentX + contentW - 14, y + 30, selected ? SELECTED : ROW);
-            g.drawString(font, pretty(module.id()), contentX + 24, y + 9, TEXT, false);
-            g.drawString(font, active ? "ON" : "OFF", contentX + contentW - 50, y + 9, active ? ACCENT : MUTED, false);
+            boolean hover = inside(mouseX, mouseY, left + 7, rowY, right - left - 19, ROW_H);
+            g.fill(left + 7, rowY, right - 12, rowY + ROW_H, selected ? SELECTED : (hover ? HOVER : ROW));
+            if (active) g.fill(left + 7, rowY, left + 10, rowY + ROW_H, ACCENT);
+            g.drawString(font, pretty(module.id()), left + 17, rowY + 7, TEXT, false);
+            g.drawString(font, active ? "ON" : (module instanceof ToggleableModule ? "OFF" : "INFO"), right - 48, rowY + 7, active ? ACCENT : MUTED, false);
         }
-        if (settingsId != null) renderSettings(g);
+
+        int max = maxScroll(modules.size());
+        if (max > 0) {
+            int trackX = right - 7;
+            int trackTop = viewportTop();
+            int trackBottom = viewportBottom;
+            int trackH = Math.max(1, trackBottom - trackTop);
+            int thumbH = Math.max(22, (int) ((double) viewport / totalContentHeight(modules.size()) * trackH));
+            int thumbY = trackTop + (int) (scroll / max * Math.max(0, trackH - thumbH));
+            g.fill(trackX, trackTop, trackX + 3, trackBottom, ROW);
+            g.fill(trackX, thumbY, trackX + 3, thumbY + thumbH, ACCENT);
+        }
     }
 
-    private void renderSettings(GuiGraphics g) {
+    private void drawSettingsPanel(GuiGraphics g) {
+        int left = settingsLeft();
+        int top = contentTop();
+        int right = width - MARGIN;
+        int bottom = contentBottom();
+        g.fill(left, top, right, bottom, PANEL);
+        g.fill(left, top, left + 3, bottom, ACCENT);
+
+        if (settingsId == null) {
+            g.drawString(font, "Select a module", left + 14, top + 14, TEXT, false);
+            g.drawString(font, "Right-click a module", left + 14, top + 35, MUTED, false);
+            return;
+        }
+
         ClientModule module = OurClient.modules().get(settingsId);
-        if (module == null) { settingsId = null; return; }
-        int w = Math.min(430, width - 36), h = settingsHeight();
-        int x = (width - w) / 2, y = (height - h) / 2;
-        g.fill(x, y, x + w, y + h, PANEL);
-        g.fill(x, y, x + w, y + 3, ACCENT);
-        g.drawString(font, pretty(settingsId) + " settings", x + 18, y + 16, TEXT, false);
-        g.drawString(font, "ESC closes this panel", x + 18, y + 32, MUTED, false);
-        int row = y + 55;
-        if (module instanceof ToggleableModule t) { setting(g, x, row, w, "Enabled", t.enabled() ? "ON" : "OFF"); row += 38; }
+        if (module == null) { settingsId = null; editingSetting = null; return; }
+        g.drawString(font, pretty(settingsId), left + 14, top + 14, TEXT, false);
+        g.drawString(font, "ESC closes", right - 62, top + 14, MUTED, false);
+
+        int row = top + 43;
+        if (module instanceof ToggleableModule t) {
+            setting(g, left, right, row, "Enabled", t.enabled() ? "ON" : "OFF", false);
+            row += 36;
+        }
         ClientConfig c = OurClient.config();
         if (c != null && settingsId.equals("aim-assist")) {
-            setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange)); row += 38;
-            setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
+            setting(g, left, right, row, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange), "range".equals(editingSetting));
+            row += 36;
+            setting(g, left, right, row, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing), "smoothness".equals(editingSetting));
+            g.drawString(font, "Wheel or ←/→", left + 14, row + 38, MUTED, false);
         } else if (c != null && settingsId.equals("auto-schematic-builder")) {
-            setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
+            setting(g, left, right, row, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick), "placements".equals(editingSetting));
+            g.drawString(font, "Wheel or ←/→", left + 14, row + 38, MUTED, false);
         } else {
-            g.drawString(font, "No adjustable settings yet.", x + 18, row + 8, MUTED, false);
+            g.drawString(font, "No adjustable settings", left + 14, row + 8, MUTED, false);
         }
-        g.drawString(font, "Click a value, then use wheel or ←/→", x + 18, y + h - 28, MUTED, false);
     }
 
-    private int settingsHeight() {
-        if (settingsId != null && settingsId.equals("aim-assist")) return 190;
-        if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
-        return 130;
-    }
-
-    private void setting(GuiGraphics g, int x, int y, int w, String label, String value) {
-        g.drawString(font, label, x + 18, y + 9, TEXT, false);
-        g.fill(x + w - 145, y, x + w - 18, y + 28, ROW);
-        g.drawString(font, value, x + w - 135, y + 9, TEXT, false);
+    private void setting(GuiGraphics g, int left, int right, int y, String label, String value, boolean selected) {
+        g.drawString(font, label, left + 14, y + 8, TEXT, false);
+        int vx = Math.max(left + 95, right - 125);
+        g.fill(vx, y, right - 12, y + 26, selected ? HOVER : ROW);
+        g.drawString(font, value, vx + 8, y + 8, TEXT, false);
     }
 
     private List<ClientModule> modulesForCategory() {
         List<ClientModule> result = new ArrayList<>();
         for (ClientModule module : OurClient.modules().all()) {
-            int cat = categoryFor(module);
-            if (cat == category && (search.isBlank() || pretty(module.id()).toLowerCase(Locale.ROOT).contains(search.toLowerCase(Locale.ROOT)))) result.add(module);
+            if (categoryFor(module) == category) result.add(module);
         }
-        if (selectedIndex >= result.size()) selectedIndex = Math.max(0, result.size() - 1);
+        selectedIndex = result.isEmpty() ? 0 : Math.min(selectedIndex, result.size() - 1);
         return result;
     }
 
@@ -133,36 +202,116 @@ public final class OurClientClickGui extends Screen {
         };
     }
 
-    @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        double mx = event.x(), my = event.y(); int button = event.button();
-        int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
-        for (int i = 0; i < CATEGORY_NAMES.length; i++) { int y = top + 54 + i * 31; if (inside(mx, my, left + 8, y, sidebar - 16, 27)) { category = i; selectedIndex = 0; return true; } }
-        int contentX = left + sidebar + 18, contentW = width - contentX - 18, searchY = top + 48;
-        if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; settingsId = null; return true; }
-        if (settingsId != null) return handleSettingsClick(mx, my);
-        List<ClientModule> modules = modulesForCategory();
-        for (int i = 0; i < modules.size(); i++) { int y = searchY + 42 + i * 34; if (inside(mx, my, contentX + 14, y, contentW - 28, 30)) { selectedIndex = i; if (button == GLFW.GLFW_MOUSE_BUTTON_1 && modules.get(i) instanceof ToggleableModule t) toggle(modules.get(i).id(), t); else if (button == GLFW.GLFW_MOUSE_BUTTON_2) settingsId = modules.get(i).id(); return true; } }
-        return super.mouseClicked(event, doubled);
+    private int totalContentHeight(int count) { return count <= 0 ? 0 : count * ROW_H + (count - 1) * ROW_GAP; }
+    private int maxScroll(int count) { return Math.max(0, totalContentHeight(count) - viewportHeight()); }
+    private void clampScroll() { clampScroll(modulesForCategory().size()); }
+    private void clampScroll(int count) { scroll = Math.max(0, Math.min(scroll, maxScroll(count))); }
+
+    private void select(int index, List<ClientModule> modules) {
+        if (modules.isEmpty()) { selectedIndex = 0; return; }
+        selectedIndex = Math.max(0, Math.min(index, modules.size() - 1));
+        int step = ROW_H + ROW_GAP;
+        int rowTop = selectedIndex * step;
+        int rowBottom = rowTop + ROW_H;
+        if (rowTop < scroll) scroll = rowTop;
+        else if (rowBottom > scroll + viewportHeight()) scroll = rowBottom - viewportHeight();
+        clampScroll(modules.size());
     }
 
-    private boolean handleSettingsClick(double mx, double my) {
-        int w = Math.min(430, width - 36), h = settingsHeight(), x = (width - w) / 2, y = (height - h) / 2;
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        try {
+            double mx = event.x(), my = event.y();
+            int button = event.button();
+            int catX = MARGIN + 6;
+            int catY = contentTop() + 27;
+            for (int i = 0; i < CATEGORIES.length; i++) {
+                if (inside(mx, my, catX, catY, CATEGORY_W - 12, TAB_H)) {
+                    category = i;
+                    selectedIndex = 0;
+                    scroll = 0;
+                    settingsId = null;
+                    editingSetting = null;
+                    return true;
+                }
+                catY += TAB_H + CATEGORY_GAP;
+            }
+
+            if (inside(mx, my, listLeft(), viewportTop(), listRight() - listLeft(), viewportHeight())) {
+                List<ClientModule> modules = modulesForCategory();
+                int offset = (int) my - viewportTop() + (int) scroll;
+                int index = offset / (ROW_H + ROW_GAP);
+                int within = offset % (ROW_H + ROW_GAP);
+                if (within < ROW_H && index >= 0 && index < modules.size()) {
+                    select(index, modules);
+                    ClientModule module = modules.get(index);
+                    if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+                        settingsId = module.id();
+                        editingSetting = null;
+                    } else if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule t) {
+                        toggle(module.id(), t);
+                    }
+                }
+                return true;
+            }
+
+            if (settingsId != null) handleSettingsClick(mx, my);
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI mouse handling failed; ignoring click", exception);
+            editingSetting = null;
+            return true;
+        }
+    }
+
+    private void handleSettingsClick(double mx, double my) {
         ClientModule module = OurClient.modules().get(settingsId);
-        if (inside(mx, my, x + w - 70, y, 70, 42)) { settingsId = null; editingSetting = null; return true; }
-        int row = y + 55;
-        if (module instanceof ToggleableModule t && inside(mx, my, x, row, w, 30)) { toggle(settingsId, t); return true; }
-        row += 38;
+        if (module == null) { settingsId = null; return; }
+        int left = settingsLeft(), right = width - MARGIN, row = contentTop() + 43;
+        if (module instanceof ToggleableModule t) {
+            if (inside(mx, my, left, row, right - left, 26)) { toggle(settingsId, t); return; }
+            row += 36;
+        }
         if (settingsId.equals("aim-assist")) {
-            if (inside(mx, my, x, row, w, 30)) { editingSetting = "range"; return true; }
-            if (inside(mx, my, x, row + 38, w, 30)) { editingSetting = "smoothness"; return true; }
-        } else if (settingsId.equals("auto-schematic-builder") && inside(mx, my, x, row, w, 30)) editingSetting = "placements";
-        return true;
+            if (inside(mx, my, left, row, right - left, 26)) { editingSetting = "range"; return; }
+            if (inside(mx, my, left, row + 36, right - left, 26)) { editingSetting = "smoothness"; return; }
+        } else if (settingsId.equals("auto-schematic-builder") && inside(mx, my, left, row, right - left, 26)) {
+            editingSetting = "placements";
+        }
     }
 
-    private void toggle(String id, ToggleableModule t) { try { t.setEnabled(!t.enabled()); OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException e) { OurClient.LOGGER.error("Failed to toggle '{}'", id, e); try { t.setEnabled(false); } catch (RuntimeException ignored) {} } }
-    @Override public boolean mouseScrolled(double mx, double my, double h, double v) { if (editingSetting != null) { adjustSetting(v > 0 ? 1 : -1); return true; } return super.mouseScrolled(mx, my, h, v); }
+    private void toggle(String id, ToggleableModule module) {
+        try {
+            module.setEnabled(!module.enabled());
+            OurClient.syncAndSaveConfigFromModules();
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("Failed to toggle '{}'", id, exception);
+            try { module.setEnabled(false); } catch (RuntimeException ignored) { }
+        }
+    }
+
+    @Override
+    public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
+        try {
+            if (settingsId != null && editingSetting != null) {
+                adjustSetting(vertical > 0 ? 1 : -1);
+                return true;
+            }
+            if (inside(mx, my, listLeft(), viewportTop(), listRight() - listLeft(), viewportHeight())) {
+                List<ClientModule> modules = modulesForCategory();
+                scroll -= Math.signum(vertical) * Math.max(10, Math.abs(vertical) * 24);
+                clampScroll(modules.size());
+            }
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI scroll handling failed; ignoring scroll", exception);
+            return true;
+        }
+    }
+
     private void adjustSetting(int direction) {
-        ClientConfig c = OurClient.config(); if (c == null || editingSetting == null) return;
+        ClientConfig c = OurClient.config();
+        if (c == null || editingSetting == null) return;
         switch (editingSetting) {
             case "range" -> c.aimRange = Math.max(1f, Math.min(64f, c.aimRange + direction));
             case "smoothness" -> c.aimSmoothing = Math.max(.01f, Math.min(1f, c.aimSmoothing + direction * .01f));
@@ -172,21 +321,59 @@ public final class OurClientClickGui extends Screen {
         OurClient.syncAndSaveConfigFromModules();
     }
 
-    @Override public boolean keyPressed(KeyEvent event) {
-        int key = event.key();
-        if (key == GLFW.GLFW_KEY_ESCAPE) { if (editingSearch || editingSetting != null) { editingSearch = false; editingSetting = null; return true; } if (settingsId != null) { settingsId = null; return true; } onClose(); return true; }
-        if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) { adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true; }
-        if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); return true; }
-        List<ClientModule> modules = modulesForCategory();
-        if (key == GLFW.GLFW_KEY_LEFT) { category = (category + CATEGORY_NAMES.length - 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
-        if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
-        if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { selectedIndex = (selectedIndex + modules.size() - 1) % modules.size(); return true; }
-        if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { selectedIndex = (selectedIndex + 1) % modules.size(); return true; }
-        if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule t) toggle(m.id(), t); return true; }
-        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
-        return super.keyPressed(event);
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        try {
+            int key = event.key();
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                if (editingSetting != null) { editingSetting = null; return true; }
+                if (settingsId != null) { settingsId = null; return true; }
+                onClose();
+                return true;
+            }
+            if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
+                adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1);
+                return true;
+            }
+            List<ClientModule> modules = modulesForCategory();
+            if (key == GLFW.GLFW_KEY_LEFT) { category = (category + CATEGORIES.length - 1) % CATEGORIES.length; selectedIndex = 0; scroll = 0; return true; }
+            if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % CATEGORIES.length; selectedIndex = 0; scroll = 0; return true; }
+            if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { select(selectedIndex - 1, modules); return true; }
+            if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { select(selectedIndex + 1, modules); return true; }
+            if (key == GLFW.GLFW_KEY_PAGE_UP) { scroll -= viewportHeight() * .8; clampScroll(modules.size()); return true; }
+            if (key == GLFW.GLFW_KEY_PAGE_DOWN) { scroll += viewportHeight() * .8; clampScroll(modules.size()); return true; }
+            if (key == GLFW.GLFW_KEY_HOME) { selectedIndex = 0; scroll = 0; return true; }
+            if (key == GLFW.GLFW_KEY_END && !modules.isEmpty()) { select(modules.size() - 1, modules); return true; }
+            if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty() && modules.get(selectedIndex) instanceof ToggleableModule t) {
+                toggle(modules.get(selectedIndex).id(), t);
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI key handling failed; ignoring key", exception);
+            return true;
+        }
     }
-    @Override public boolean charTyped(CharacterEvent event) { if (editingSearch && !Character.isISOControl(event.codepoint())) { search += new String(Character.toChars(event.codepoint())); selectedIndex = 0; return true; } return super.charTyped(event); }
-    private static boolean inside(double mx, double my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
-    private static String pretty(String id) { String[] words = id.split("[-_]"); StringBuilder out = new StringBuilder(); for (String word : words) { if (!out.isEmpty()) out.append(' '); if (!word.isEmpty()) out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)); } return out.toString(); }
+
+    @Override
+    public void onClose() {
+        editingSetting = null;
+        settingsId = null;
+        super.onClose();
+    }
+
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return w > 0 && h > 0 && mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    private static String pretty(String id) {
+        String[] words = id.split("[-_]");
+        StringBuilder out = new StringBuilder();
+        for (String word : words) {
+            if (!out.isEmpty()) out.append(' ');
+            if (!word.isEmpty()) out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return out.toString();
+    }
 }
