@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 /** Stable player-box ESP using Fabric's world extraction/buffer path. */
 public final class ESPModule implements ToggleableModule {
@@ -48,11 +49,12 @@ public final class ESPModule implements ToggleableModule {
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
+            Vec3 camera = mc.getCameraEntity().position();
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                emitBox(pose, buffer, target.getBoundingBox());
+                emitBox(pose, buffer, target.getBoundingBox(), camera);
             }
         } catch (RuntimeException exception) {
             disableAfterRenderFailure("ESP", exception);
@@ -67,19 +69,21 @@ public final class ESPModule implements ToggleableModule {
         if (config != null) config.esp = false;
     }
 
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.minY, (float)b.maxZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.minY, (float)b.minZ);
-        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.maxX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.maxY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.minZ, (float)b.minX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.minZ, (float)b.maxX, (float)b.maxY, (float)b.minZ);
-        line(pose, consumer, (float)b.maxX, (float)b.minY, (float)b.maxZ, (float)b.maxX, (float)b.maxY, (float)b.maxZ);
-        line(pose, consumer, (float)b.minX, (float)b.minY, (float)b.maxZ, (float)b.minX, (float)b.maxY, (float)b.maxZ);
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, Vec3 camera) {
+        float minX = (float) (b.minX - camera.x), minY = (float) (b.minY - camera.y), minZ = (float) (b.minZ - camera.z);
+        float maxX = (float) (b.maxX - camera.x), maxY = (float) (b.maxY - camera.y), maxZ = (float) (b.maxZ - camera.z);
+        line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
+        line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, minY, minZ);
+        line(pose, consumer, minX, maxY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, maxY, minZ, maxX, maxY, maxZ);
+        line(pose, consumer, maxX, maxY, maxZ, minX, maxY, maxZ);
+        line(pose, consumer, minX, maxY, maxZ, minX, maxY, minZ);
+        line(pose, consumer, minX, minY, minZ, minX, maxY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, minY, maxZ, maxX, maxY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, maxY, maxZ);
     }
 
     private static void line(PoseStack.Pose pose, VertexConsumer consumer,
