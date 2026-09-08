@@ -28,9 +28,8 @@ public final class ScaffoldModule implements ToggleableModule {
         Minecraft client = Minecraft.getInstance();
         if (enabled) {
             if (client.player != null) previousSlot = client.player.getInventory().getSelectedSlot();
-        } else if (client.player != null && previousSlot >= 0 && previousSlot < 9) {
-            client.player.getInventory().setSelectedSlot(previousSlot);
-            previousSlot = -1;
+        } else {
+            restorePreviousSlot(client.player);
         }
     }
 
@@ -41,11 +40,11 @@ public final class ScaffoldModule implements ToggleableModule {
         BlockPos target = player.blockPosition().below();
         if (!client.level.getBlockState(target).canBeReplaced()) return;
 
-        // Prefer the block directly below; if unavailable, try the four horizontal support faces.
         if (tryPlace(client, target)) return;
         for (Direction direction : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST}) {
             BlockPos support = target.relative(direction);
-            if (client.level.getBlockState(support).isSolidRender() && tryPlaceAgainst(client, target, support, direction.getOpposite())) return;
+            if (client.level.getBlockState(support).isSolidRender()
+                    && tryPlaceAgainst(client, target, support, direction.getOpposite())) return;
         }
     }
 
@@ -64,24 +63,37 @@ public final class ScaffoldModule implements ToggleableModule {
         Vec3 eye = client.player.getEyePosition();
         Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
         if (eye.distanceToSqr(hit) > RANGE * RANGE) return false;
-        client.player.getInventory().setSelectedSlot(slot);
-        InteractionResult result = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND,
-                new BlockHitResult(hit, face, support, false));
-        if (result.consumesAction()) {
-            client.player.swing(InteractionHand.MAIN_HAND);
-            return true;
+
+        int oldSlot = client.player.getInventory().getSelectedSlot();
+        if (oldSlot != slot) client.player.getInventory().setSelectedSlot(slot);
+        try {
+            InteractionResult result = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND,
+                    new BlockHitResult(hit, face, support, false));
+            if (result.consumesAction()) {
+                client.player.swing(InteractionHand.MAIN_HAND);
+                return true;
+            }
+            return false;
+        } finally {
+            if (oldSlot != slot) client.player.getInventory().setSelectedSlot(oldSlot);
         }
-        return false;
     }
 
     private int findBlockSlot(LocalPlayer player) {
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.getItem() instanceof BlockItem item && item.getBlock().defaultBlockState().canBeReplaced() == false) {
+            if (stack.getItem() instanceof BlockItem item) {
                 Block block = item.getBlock();
-                if (!block.defaultBlockState().isAir()) return slot;
+                if (!block.defaultBlockState().isAir() && !block.defaultBlockState().canBeReplaced()) return slot;
             }
         }
         return -1;
+    }
+
+    private void restorePreviousSlot(LocalPlayer player) {
+        if (player != null && previousSlot >= 0 && previousSlot < 9) {
+            player.getInventory().setSelectedSlot(previousSlot);
+        }
+        previousSlot = -1;
     }
 }
