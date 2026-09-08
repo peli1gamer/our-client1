@@ -23,8 +23,10 @@ public final class AirJumpModule implements ToggleableModule {
 
         boolean jump = client.options.keyJump.isDown();
         if (client.screen != null || client.player == null) {
-            // Keep edge detection synchronized while a GUI is open so a held
-            // key does not become a fresh press when gameplay resumes.
+            previousJump = jump;
+            return;
+        }
+        if (client.player.isSpectator() || client.player.isPassenger()) {
             previousJump = jump;
             return;
         }
