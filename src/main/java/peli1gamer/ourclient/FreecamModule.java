@@ -16,6 +16,7 @@ public final class FreecamModule implements ToggleableModule {
     private Entity previousCamera;
     private ClientInput previousInput;
     private LocalPlayer inputOwner;
+    private LocalPlayer activePlayer;
     private float lockedPlayerYaw;
     private float lockedPlayerPitch;
 
@@ -39,6 +40,7 @@ public final class FreecamModule implements ToggleableModule {
                 releaseMouse(client);
                 camera = null;
                 previousCamera = null;
+                activePlayer = null;
                 OurClient.LOGGER.error("Could not enable freecam; state was rolled back", exception);
                 syncDisabledConfig();
             }
@@ -55,6 +57,10 @@ public final class FreecamModule implements ToggleableModule {
         }
         if (!enabled) return;
         if (client.player == null || client.level == null) {
+            cleanupAfterWorldLoss(client);
+            return;
+        }
+        if (activePlayer != null && activePlayer != client.player) {
             cleanupAfterWorldLoss(client);
             return;
         }
@@ -94,6 +100,7 @@ public final class FreecamModule implements ToggleableModule {
             return;
         }
 
+        activePlayer = player;
         previousCamera = client.getCameraEntity();
         lockedPlayerYaw = player.getYRot();
         lockedPlayerPitch = player.getXRot();
@@ -117,6 +124,7 @@ public final class FreecamModule implements ToggleableModule {
         releaseMouse(client);
         camera = null;
         previousCamera = null;
+        activePlayer = null;
     }
 
     private void cleanupAfterWorldLoss(Minecraft client) {
@@ -128,6 +136,7 @@ public final class FreecamModule implements ToggleableModule {
         previousCamera = null;
         previousInput = null;
         inputOwner = null;
+        activePlayer = null;
         syncDisabledConfig();
     }
 
