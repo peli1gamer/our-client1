@@ -11,12 +11,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** Stable player-box ESP using Fabric's supported world consumer path. */
 public final class ESPModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
+    private static final double MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
     private static boolean renderHookInstalled;
     private static ESPModule activeInstance;
     private boolean enabled;
@@ -48,24 +46,19 @@ public final class ESPModule implements ToggleableModule {
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
 
         try {
-            Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
-            double maxRangeSquared = MAX_RANGE * MAX_RANGE;
-            List<Box> boxes = new ArrayList<>();
-
-            for (Player target : mc.level.players()) {
-                if (target == mc.player || !target.isAlive()) continue;
-                if (mc.player.distanceToSqr(target) > maxRangeSquared) continue;
-                AABB worldBox = target.getBoundingBox();
-                AABB box = worldBox.move(-camera.x, -camera.y, -camera.z);
-                boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
-                        (float) box.maxX, (float) box.maxY, (float) box.maxZ));
-            }
-
-            if (boxes.isEmpty()) return;
+            Vec3 camera = mc.getCameraEntity().getPosition(context.tickCounter().getTickProgress(false));
             MultiBufferSource consumers = context.consumers();
             VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
-            emitBoxes(pose, buffer, boxes);
+
+            for (Player target : mc.level.players()) {
+                if (target == mc.player || !target.isAlive()) continue;
+                if (mc.player.distanceToSqr(target) > MAX_RANGE_SQUARED) continue;
+                AABB worldBox = target.getBoundingBox();
+                AABB box = worldBox.move(-camera.x, -camera.y, -camera.z);
+                emitBox(pose, buffer, (float) box.minX, (float) box.minY, (float) box.minZ,
+                        (float) box.maxX, (float) box.maxY, (float) box.maxZ);
+            }
         } catch (RuntimeException exception) {
             enabled = false;
             if (activeInstance == this) activeInstance = null;
@@ -75,21 +68,20 @@ public final class ESPModule implements ToggleableModule {
         }
     }
 
-    private static void emitBoxes(PoseStack.Pose pose, VertexConsumer consumer, List<Box> boxes) {
-        for (Box b : boxes) {
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.maxX, b.minY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.minY, b.maxZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.minX, b.minY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.minY, b.minZ);
-            line(pose, consumer, b.minX, b.maxY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.maxY, b.minZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.maxX, b.maxY, b.maxZ, b.minX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.maxY, b.maxZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.minX, b.minY, b.minZ, b.minX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.minZ, b.maxX, b.maxY, b.minZ);
-            line(pose, consumer, b.maxX, b.minY, b.maxZ, b.maxX, b.maxY, b.maxZ);
-            line(pose, consumer, b.minX, b.minY, b.maxZ, b.minX, b.maxY, b.maxZ);
-        }
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer,
+                                float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+        line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
+        line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, minY, minZ);
+        line(pose, consumer, minX, maxY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, maxY, minZ, maxX, maxY, maxZ);
+        line(pose, consumer, maxX, maxY, maxZ, minX, maxY, maxZ);
+        line(pose, consumer, minX, maxY, maxZ, minX, maxY, minZ);
+        line(pose, consumer, minX, minY, minZ, minX, maxY, minZ);
+        line(pose, consumer, maxX, minY, minZ, maxX, maxY, minZ);
+        line(pose, consumer, maxX, minY, maxZ, maxX, maxY, maxZ);
+        line(pose, consumer, minX, minY, maxZ, minX, maxY, maxZ);
     }
 
     private static void line(PoseStack.Pose pose, VertexConsumer consumer,
@@ -101,6 +93,4 @@ public final class ESPModule implements ToggleableModule {
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
     }
-
-    private record Box(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {}
 }
