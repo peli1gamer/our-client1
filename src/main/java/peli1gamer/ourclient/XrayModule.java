@@ -56,7 +56,8 @@ public final class XrayModule implements ToggleableModule {
 
         try {
             List<BlockPos> next = new ArrayList<>();
-            BlockPos origin = mc.player.blockPosition();
+            Vec3 camera = mc.getCameraEntity() == null ? mc.player.position() : mc.getCameraEntity().position();
+            BlockPos origin = BlockPos.containing(camera);
             int minY = Math.max(mc.level.getMinY(), origin.getY() - RADIUS);
             int maxY = Math.min(mc.level.getMaxY() - 1, origin.getY() + RADIUS);
             for (int x = -RADIUS; x <= RADIUS; x++) {
@@ -114,7 +115,7 @@ public final class XrayModule implements ToggleableModule {
             int rendered = 0;
 
             for (BlockPos pos : snapshot) {
-                if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
+                if (camera.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
                 AABB box = new AABB(pos).inflate(.01);
                 emitBox(pose, buffer, box, camera);
                 if (++rendered >= MAX_RENDERED_BLOCKS) break;
