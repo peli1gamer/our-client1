@@ -16,7 +16,8 @@ public final class BunnyHopModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        if (!enabled || client.player == null || client.options == null || client.screen != null) return;
+        if (client.player.isSpectator() || client.player.isPassenger()) return;
 
         boolean moving = client.options.keyUp.isDown()
                 || client.options.keyDown.isDown()
