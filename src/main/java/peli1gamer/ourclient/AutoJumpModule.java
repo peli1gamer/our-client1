@@ -18,7 +18,11 @@ public final class AutoJumpModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.screen != null) return;
+        if (!enabled || client.options == null) return;
+        if (client.screen != null || client.player == null) {
+            cooldown = 0;
+            return;
+        }
         if (cooldown > 0) {
             cooldown--;
             return;
