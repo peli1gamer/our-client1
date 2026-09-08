@@ -2,20 +2,15 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 
-/** Base contract for every Arson Client module. Keep this interface small so modules stay easy to extend. */
+/** Core Arson module contract. Modules stay independent of the ClickGUI. */
 public interface ClientModule {
     String id();
 
-    /** Human-readable help text shown by the ClickGUI. */
-    default String description() {
-        return "No description available.";
-    }
-
-    /** Optional settings exposed to the ClickGUI. */
-    default ModuleSettings settings() {
-        return new ModuleSettings();
-    }
-
-    default void onClientTick(Minecraft client) {
-    }
+    default String title() { return id(); }
+    default String description() { return "No description available."; }
+    default ClientModuleManager.Category category() { return ClientModuleManager.Category.MISC; }
+    default ModuleSettings settings() { return new ModuleSettings(); }
+    default void onEnable(Minecraft client) { }
+    default void onDisable(Minecraft client) { }
+    default void onClientTick(Minecraft client) { }
 }
