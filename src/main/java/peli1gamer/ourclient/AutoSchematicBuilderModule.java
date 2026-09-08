@@ -30,6 +30,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private static final int MAX_WORK_ITEMS_SCANNED_PER_TICK = 4096;
     private static final int NO_PROGRESS_NOTICE_TICKS = 40;
     private static final int RETRY_DELAY_TICKS = 2;
+    private static final int LOAD_RETRY_DELAY_TICKS = 40;
     private static final long MAX_SCHEMATIC_FILE_BYTES = 8L * 1024L * 1024L;
 
     private boolean enabled;
@@ -40,6 +41,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private boolean loaded;
     private int noProgressTicks;
     private int retryCooldown;
+    private int loadRetryCooldown;
     private int previousSelectedSlot = -1;
     private int activePlacementSlot = -1;
     private ClientLevel activeLevel;
@@ -57,6 +59,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             previousSelectedSlot = client.player == null ? -1 : client.player.getInventory().getSelectedSlot();
             activePlacementSlot = -1;
             activeLevel = client.level;
+            loadRetryCooldown = 0;
         } else {
             restoreSelectedSlot();
             resetProgress();
@@ -77,7 +80,17 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             activePlacementSlot = -1;
         }
 
-        if (!loaded) loadSchematic(client);
+        if (!loaded) {
+            if (loadRetryCooldown > 0) {
+                loadRetryCooldown--;
+                return;
+            }
+            loadSchematic(client);
+            if (!loaded) {
+                loadRetryCooldown = LOAD_RETRY_DELAY_TICKS;
+                return;
+            }
+        }
         if (schematic == null) return;
 
         if (origin == null) {
@@ -317,6 +330,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         schematic = null;
         noProgressTicks = 0;
         retryCooldown = 0;
+        loadRetryCooldown = 0;
         activeLevel = null;
     }
 }
