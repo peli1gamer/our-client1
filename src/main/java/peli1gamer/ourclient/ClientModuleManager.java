@@ -11,6 +11,7 @@ import peli1gamer.ourclient.meteor.MeteorAirJumpModule;
 import peli1gamer.ourclient.meteor.MeteorAutoJumpModule;
 import peli1gamer.ourclient.meteor.MeteorAutoWalkModule;
 import peli1gamer.ourclient.meteor.MeteorFullbrightModule;
+import peli1gamer.ourclient.meteor.MeteorSprintModule;
 
 /** Central Arson module registry, lifecycle boundary and fault isolation layer. */
 public final class ClientModuleManager {
@@ -47,7 +48,7 @@ public final class ClientModuleManager {
         Map<String, String> previousDescriptions = new LinkedHashMap<>(descriptions);
         try {
             register(Category.COMBAT, new AimAssistModule(), "Smoothly assists your aim toward nearby living entities.");
-            register(Category.COMBAT, new TriggerBotModule(), "Attacks a living entity when it is directly under your crosshair.");
+            register(Category.COMBAT, new TriggerBotModule(), "Attacks a living entity when it is directly under your crosshair target.");
             register(Category.COMBAT, new CrystalMacroModule(), "Places and breaks end crystals from the current crosshair target.");
             register(Category.COMBAT, new AttributeSwapModule(), "Selects the strongest sword or axe in your hotbar when attacking.");
 
@@ -60,6 +61,7 @@ public final class ClientModuleManager {
             register(Category.MOVEMENT, new MeteorAutoWalkModule(), "Automatically holds a movement direction.");
             register(Category.MOVEMENT, new MeteorAutoJumpModule(), "Automatically jumps while the player is moving.");
             register(Category.MOVEMENT, new MeteorAirJumpModule(), "Allows jumping while airborne.");
+            register(Category.MOVEMENT, new MeteorSprintModule(), "Automatically keeps sprinting when movement allows it.");
 
             register(Category.WORLD, new AutoSchematicBuilderModule(), "Places blocks from the configured JSON schematic file.");
             register(Category.WORLD, new SavedBasesModule(), "Saves and restores named base locations.");
