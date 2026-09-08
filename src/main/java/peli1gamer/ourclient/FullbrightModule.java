@@ -21,9 +21,9 @@ public final class FullbrightModule implements ToggleableModule {
             previousGamma = client.options.gamma().get();
             client.options.gamma().set(FULLBRIGHT_GAMMA);
         } else if (previousGamma != null) {
-            // Only restore a value if Fullbright still owns the gamma setting.
-            // This avoids overwriting a user/config change made after the last tick.
-            if (client.options.gamma().get() >= FULLBRIGHT_GAMMA) {
+            // Restore only when Fullbright still owns the value it wrote.
+            // A user/config change to any other value must not be overwritten.
+            if (Double.compare(client.options.gamma().get(), FULLBRIGHT_GAMMA) == 0) {
                 client.options.gamma().set(previousGamma);
             }
             previousGamma = null;
