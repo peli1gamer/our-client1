@@ -133,16 +133,53 @@ public final class OurClientClickGui extends Screen {
         };
     }
 
-    @Override public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
-        double mx = event.x(), my = event.y(); int button = event.button();
-        int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
-        for (int i = 0; i < CATEGORY_NAMES.length; i++) { int y = top + 54 + i * 31; if (inside(mx, my, left + 8, y, sidebar - 16, 27)) { category = i; selectedIndex = 0; return true; } }
-        int contentX = left + sidebar + 18, contentW = width - contentX - 18, searchY = top + 48;
-        if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; settingsId = null; return true; }
-        if (settingsId != null) return handleSettingsClick(mx, my);
-        List<ClientModule> modules = modulesForCategory();
-        for (int i = 0; i < modules.size(); i++) { int y = searchY + 42 + i * 34; if (inside(mx, my, contentX + 14, y, contentW - 28, 30)) { selectedIndex = i; if (button == GLFW.GLFW_MOUSE_BUTTON_1 && modules.get(i) instanceof ToggleableModule t) toggle(modules.get(i).id(), t); else if (button == GLFW.GLFW_MOUSE_BUTTON_2) settingsId = modules.get(i).id(); return true; } }
-        return super.mouseClicked(event, doubled);
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        // This screen has no vanilla child widgets. Handling the event entirely here
+        // avoids delegating into Screen's focus/navigation machinery, which changed in
+        // Minecraft 1.21.11 and was the source of the mouseClicked crash.
+        try {
+            double mx = event.x(), my = event.y();
+            int button = event.button();
+            int left = 18, top = 18, sidebar = Math.min(170, Math.max(140, width / 4));
+            for (int i = 0; i < CATEGORY_NAMES.length; i++) {
+                int y = top + 54 + i * 31;
+                if (inside(mx, my, left + 8, y, sidebar - 16, 27)) {
+                    category = i;
+                    selectedIndex = 0;
+                    editingSearch = false;
+                    return true;
+                }
+            }
+            int contentX = left + sidebar + 18, contentW = width - contentX - 18, searchY = top + 48;
+            if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) {
+                editingSearch = true;
+                editingSetting = null;
+                settingsId = null;
+                return true;
+            }
+            if (settingsId != null) return handleSettingsClick(mx, my);
+            List<ClientModule> modules = modulesForCategory();
+            for (int i = 0; i < modules.size(); i++) {
+                int y = searchY + 42 + i * 34;
+                if (inside(mx, my, contentX + 14, y, contentW - 28, 30)) {
+                    selectedIndex = i;
+                    if (button == GLFW.GLFW_MOUSE_BUTTON_1 && modules.get(i) instanceof ToggleableModule t) {
+                        toggle(modules.get(i).id(), t);
+                    } else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
+                        settingsId = modules.get(i).id();
+                        editingSetting = null;
+                    }
+                    return true;
+                }
+            }
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI mouse handling failed; ignoring click", exception);
+            editingSearch = false;
+            editingSetting = null;
+            return true;
+        }
     }
 
     private boolean handleSettingsClick(double mx, double my) {
@@ -159,8 +196,21 @@ public final class OurClientClickGui extends Screen {
         return true;
     }
 
-    private void toggle(String id, ToggleableModule t) { try { t.setEnabled(!t.enabled()); OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException e) { OurClient.LOGGER.error("Failed to toggle '{}'", id, e); try { t.setEnabled(false); } catch (RuntimeException ignored) {} } }
-    @Override public boolean mouseScrolled(double mx, double my, double h, double v) { if (editingSetting != null) { adjustSetting(v > 0 ? 1 : -1); return true; } return super.mouseScrolled(mx, my, h, v); }
+    private void toggle(String id, ToggleableModule t) {
+        try {
+            t.setEnabled(!t.enabled());
+            OurClient.syncAndSaveConfigFromModules();
+        } catch (RuntimeException e) {
+            OurClient.LOGGER.error("Failed to toggle '{}'", id, e);
+            try { t.setEnabled(false); } catch (RuntimeException ignored) {}
+        }
+    }
+
+    @Override public boolean mouseScrolled(double mx, double my, double h, double v) {
+        if (editingSetting != null) { adjustSetting(v > 0 ? 1 : -1); return true; }
+        return true;
+    }
+
     private void adjustSetting(int direction) {
         ClientConfig c = OurClient.config(); if (c == null || editingSetting == null) return;
         switch (editingSetting) {
@@ -173,20 +223,52 @@ public final class OurClientClickGui extends Screen {
     }
 
     @Override public boolean keyPressed(KeyEvent event) {
-        int key = event.key();
-        if (key == GLFW.GLFW_KEY_ESCAPE) { if (editingSearch || editingSetting != null) { editingSearch = false; editingSetting = null; return true; } if (settingsId != null) { settingsId = null; return true; } onClose(); return true; }
-        if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) { adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true; }
-        if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); return true; }
-        List<ClientModule> modules = modulesForCategory();
-        if (key == GLFW.GLFW_KEY_LEFT) { category = (category + CATEGORY_NAMES.length - 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
-        if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
-        if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { selectedIndex = (selectedIndex + modules.size() - 1) % modules.size(); return true; }
-        if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { selectedIndex = (selectedIndex + 1) % modules.size(); return true; }
-        if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule t) toggle(m.id(), t); return true; }
-        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
-        return super.keyPressed(event);
+        try {
+            int key = event.key();
+            if (key == GLFW.GLFW_KEY_ESCAPE) {
+                if (editingSearch || editingSetting != null) { editingSearch = false; editingSetting = null; return true; }
+                if (settingsId != null) { settingsId = null; return true; }
+                onClose();
+                return true;
+            }
+            if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) {
+                adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true;
+            }
+            if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); return true; }
+            List<ClientModule> modules = modulesForCategory();
+            if (key == GLFW.GLFW_KEY_LEFT) { category = (category + CATEGORY_NAMES.length - 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
+            if (key == GLFW.GLFW_KEY_RIGHT) { category = (category + 1) % CATEGORY_NAMES.length; selectedIndex = 0; return true; }
+            if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) { selectedIndex = (selectedIndex + modules.size() - 1) % modules.size(); return true; }
+            if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) { selectedIndex = (selectedIndex + 1) % modules.size(); return true; }
+            if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule t) toggle(m.id(), t); return true; }
+            if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { settingsId = modules.get(selectedIndex).id(); editingSetting = null; return true; }
+            return true;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI key handling failed; ignoring key", exception);
+            return true;
+        }
     }
-    @Override public boolean charTyped(CharacterEvent event) { if (editingSearch && !Character.isISOControl(event.codepoint())) { search += new String(Character.toChars(event.codepoint())); selectedIndex = 0; return true; } return super.charTyped(event); }
+
+    @Override public boolean charTyped(CharacterEvent event) {
+        try {
+            if (editingSearch && !Character.isISOControl(event.codepoint())) {
+                search += new String(Character.toChars(event.codepoint()));
+                selectedIndex = 0;
+                return true;
+            }
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("ClickGUI text input failed; ignoring character", exception);
+        }
+        return true;
+    }
+
+    @Override public void onClose() {
+        editingSearch = false;
+        editingSetting = null;
+        settingsId = null;
+        super.onClose();
+    }
+
     private static boolean inside(double mx, double my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
     private static String pretty(String id) { String[] words = id.split("[-_]"); StringBuilder out = new StringBuilder(); for (String word : words) { if (!out.isEmpty()) out.append(' '); if (!word.isEmpty()) out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)); } return out.toString(); }
 }
