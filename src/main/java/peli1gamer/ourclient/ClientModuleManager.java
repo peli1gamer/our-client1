@@ -36,8 +36,15 @@ public final class ClientModuleManager {
             register(new SavedBasesModule());
             register(new ScaffoldModule());
 
-            // Expanded non-combat catalog. These are registered independently so
-            // unfinished behavior cannot destabilize the already working modules.
+            // Small, stable movement/render batch.
+            register(new AutoWalkModule());
+            register(new AutoJumpModule());
+            register(new AirJumpModule());
+            register(new SprintModule());
+            register(new FullbrightModule());
+
+            // Expanded catalog remains isolated so unfinished features cannot
+            // destabilize the already implemented modules.
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
@@ -50,12 +57,12 @@ public final class ClientModuleManager {
 
     private void registerCatalog() {
         String[] movement = {
-            "sprint", "auto-sprint", "speed", "step", "long-jump", "bunny-hop",
+            "auto-sprint", "speed", "step", "long-jump", "bunny-hop",
             "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "high-jump", "safe-walk"
         };
         String[] render = {
             "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp",
-            "fullbright", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators"
+            "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators"
         };
         String[] world = {
             "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower",
