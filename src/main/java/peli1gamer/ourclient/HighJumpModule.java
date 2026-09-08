@@ -1,12 +1,14 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
 /** Increases normal jump height without changing horizontal movement. */
 public final class HighJumpModule implements ToggleableModule {
     private boolean enabled;
     private boolean previousJump;
+    private LocalPlayer activePlayer;
 
     @Override public String id() { return "high-jump"; }
     @Override public boolean enabled() { return enabled; }
@@ -16,6 +18,7 @@ public final class HighJumpModule implements ToggleableModule {
         Minecraft client = Minecraft.getInstance();
         this.enabled = enabled;
         previousJump = enabled && client.options != null && client.options.keyJump.isDown();
+        activePlayer = enabled ? client.player : null;
     }
 
     @Override
@@ -24,6 +27,11 @@ public final class HighJumpModule implements ToggleableModule {
 
         boolean jump = client.options.keyJump.isDown();
         if (client.screen != null || client.player == null) {
+            previousJump = jump;
+            return;
+        }
+        if (activePlayer != null && activePlayer != client.player) {
+            activePlayer = client.player;
             previousJump = jump;
             return;
         }
