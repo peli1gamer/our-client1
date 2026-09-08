@@ -2,6 +2,7 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -41,6 +42,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private int retryCooldown;
     private int previousSelectedSlot = -1;
     private int activePlacementSlot = -1;
+    private ClientLevel activeLevel;
     private String requestedFile = "build.json";
 
     @Override public String id() { return "auto-schematic-builder"; }
@@ -54,6 +56,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
             Minecraft client = Minecraft.getInstance();
             previousSelectedSlot = client.player == null ? -1 : client.player.getInventory().getSelectedSlot();
             activePlacementSlot = -1;
+            activeLevel = client.level;
         } else {
             restoreSelectedSlot();
             resetProgress();
@@ -65,6 +68,15 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (!enabled || client.player == null || client.level == null || client.gameMode == null
                 || client.screen != null) return;
         if (!client.player.isAlive()) return;
+
+        if (activeLevel != client.level) {
+            restoreSelectedSlot();
+            resetProgress();
+            activeLevel = client.level;
+            previousSelectedSlot = client.player.getInventory().getSelectedSlot();
+            activePlacementSlot = -1;
+        }
+
         if (!loaded) loadSchematic(client);
         if (schematic == null) return;
 
@@ -305,5 +317,6 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         schematic = null;
         noProgressTicks = 0;
         retryCooldown = 0;
+        activeLevel = null;
     }
 }
