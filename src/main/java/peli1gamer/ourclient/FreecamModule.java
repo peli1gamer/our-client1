@@ -25,8 +25,13 @@ public final class FreecamModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
-        this.enabled = enabled;
         Minecraft client = Minecraft.getInstance();
+        // Freecam changes the active camera and grabs the mouse, so never enter
+        // it while another Screen owns input (the ClickGUI can toggle modules).
+        // Leave the module disabled; it can be enabled again after the screen closes.
+        if (enabled && client.screen != null) return;
+
+        this.enabled = enabled;
         if (enabled) {
             try {
                 enter(client);
@@ -64,9 +69,6 @@ public final class FreecamModule implements ToggleableModule {
 
         LocalPlayer player = client.player;
 
-        // Let Minecraft's normal mouse handling calculate the same rotation deltas
-        // it would use in ordinary gameplay, then transfer those deltas to the
-        // free camera and put the real player back at its original rotation.
         float playerYaw = player.getYRot();
         float playerPitch = player.getXRot();
         float yawDelta = wrapDegrees(playerYaw - lockedPlayerYaw);
@@ -86,7 +88,7 @@ public final class FreecamModule implements ToggleableModule {
 
     private void enter(Minecraft client) {
         LocalPlayer player = client.player;
-        if (player == null || client.level == null) {
+        if (player == null || client.level == null || client.screen != null) {
             enabled = false;
             return;
         }
@@ -105,9 +107,6 @@ public final class FreecamModule implements ToggleableModule {
         camera.setXRot(lockedPlayerPitch);
         syncCameraTransform();
         client.setCameraEntity(camera);
-
-        // Use Minecraft's normal cursor grabbing rather than manually moving the
-        // GLFW cursor every tick. This avoids jitter and over-rotation.
         client.mouseHandler.grabMouse();
     }
 
@@ -182,10 +181,6 @@ public final class FreecamModule implements ToggleableModule {
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
 
-        // Minecraft yaw is 0 south and increases toward west. The right/strafe
-        // vector therefore has a negative Z component at positive yaw. The old
-        // formula used +sin here, which made A and D appear mirrored as the camera
-        // turned. Keep forward/backward unchanged and correct only the strafe axis.
         double mx = strafe * cos - forward * sin;
         double mz = -strafe * sin + forward * cos;
         camera.setPos(camera.getX() + mx * speed, camera.getY() + vertical * speed, camera.getZ() + mz * speed);
