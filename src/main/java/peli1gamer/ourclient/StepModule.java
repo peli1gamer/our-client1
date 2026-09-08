@@ -57,12 +57,7 @@ public final class StepModule implements ToggleableModule {
                 if (field.getType() != float.class) continue;
                 String name = field.getName();
                 if (!name.equals("maxUpStep") && !name.equals("stepHeight") && !name.equals("field_6013")) continue;
-                field.setAccessible(true);
-                float previous = field.getFloat(entity);
-                field.setFloat(entity, original + 0.1f);
-                float reported = ((Number) getter.invoke(entity)).floatValue();
-                field.setFloat(entity, previous);
-                if (Math.abs(reported - (original + 0.1f)) < 0.0001f) return field;
+                if (verifyStepField(entity, getter, field, original)) return field;
             }
         }
 
@@ -74,16 +69,28 @@ public final class StepModule implements ToggleableModule {
                     field.setAccessible(true);
                     float previous = field.getFloat(entity);
                     if (Math.abs(previous - original) > 0.0001f) continue;
-                    field.setFloat(entity, original + 0.1f);
-                    float reported = ((Number) getter.invoke(entity)).floatValue();
-                    field.setFloat(entity, previous);
-                    if (Math.abs(reported - (original + 0.1f)) < 0.0001f) return field;
+                    if (verifyStepField(entity, getter, field, original)) return field;
                 } catch (IllegalAccessException | RuntimeException ignored) {
-                    // Continue scanning.
+                    // Continue scanning fields.
                 }
             }
         }
         return null;
+    }
+
+    private static boolean verifyStepField(Object entity, java.lang.reflect.Method getter, Field field, float original)
+            throws IllegalAccessException, ReflectiveOperationException {
+        field.setAccessible(true);
+        float previous = field.getFloat(entity);
+        float probe = original + 0.1f;
+        try {
+            field.setFloat(entity, probe);
+            float reported = ((Number) getter.invoke(entity)).floatValue();
+            return Math.abs(reported - probe) < 0.0001f;
+        } finally {
+            // Never leave the player modified if reflection/getter invocation fails during probing.
+            field.setFloat(entity, previous);
+        }
     }
 
     public float height() { return height; }
