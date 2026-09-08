@@ -66,7 +66,8 @@ public final class AimAssistModule implements ToggleableModule {
     }
 
     private static boolean isValidTarget(LocalPlayer player, LivingEntity candidate, double range) {
-        return candidate != null && candidate != player && candidate.isAlive() && !candidate.isSpectator()
+        return candidate != null && candidate != player && candidate.level() == player.level()
+                && candidate.isAlive() && !candidate.isSpectator()
                 && player.distanceToSqr(candidate) <= range * range;
     }
 
