@@ -58,6 +58,10 @@ public final class FreecamModule implements ToggleableModule {
             cleanupAfterWorldLoss(client);
             return;
         }
+        if (camera != null && camera.level() != client.level) {
+            cleanupAfterWorldLoss(client);
+            return;
+        }
         if (client.screen != null) return;
 
         if (camera == null) {
