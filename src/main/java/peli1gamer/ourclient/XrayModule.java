@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -18,18 +19,33 @@ import java.util.List;
 
 /** Lightweight ore overlay. Scans a bounded area and renders through Fabric's world consumers. */
 public final class XrayModule implements ToggleableModule {
-    private static final int RADIUS = 20;
+    private static final int MIN_RADIUS = 8;
+    private static final int MAX_RADIUS = 32;
     private static final int SCAN_INTERVAL_TICKS = 20;
+    private static final int MAX_RENDERED_MATCHES = 1024;
     private static boolean hookInstalled;
     private static XrayModule active;
+
     private boolean enabled;
+    private int radius = 20;
     private int scanTimer;
+    private Level lastLevel;
     private final List<BlockPos> matches = new ArrayList<>();
 
     public XrayModule() { installHook(); }
 
     @Override public String id() { return "xray"; }
+    @Override public String description() { return "Highlights nearby valuable ores without modifying world blocks."; }
     @Override public boolean enabled() { return enabled; }
+
+    @Override
+    public ModuleSettings settings() {
+        ModuleSettings settings = new ModuleSettings();
+        settings.number("radius", "Scan radius", () -> Integer.toString(radius),
+                () -> radius = Math.min(MAX_RADIUS, radius + 2),
+                () -> radius = Math.max(MIN_RADIUS, radius - 2));
+        return settings;
+    }
 
     @Override
     public void setEnabled(boolean enabled) {
@@ -40,12 +56,18 @@ public final class XrayModule implements ToggleableModule {
         } else if (active == this) {
             active = null;
             matches.clear();
+            lastLevel = null;
         }
     }
 
     @Override
     public void onClientTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive()) return;
+        if (lastLevel != mc.level) {
+            matches.clear();
+            lastLevel = mc.level;
+            scanTimer = 0;
+        }
         if (scanTimer > 0) {
             scanTimer--;
             return;
@@ -55,13 +77,17 @@ public final class XrayModule implements ToggleableModule {
         try {
             matches.clear();
             BlockPos origin = mc.player.blockPosition();
-            int minY = Math.max(mc.level.getMinY(), origin.getY() - RADIUS);
-            int maxY = Math.min(mc.level.getMaxY(), origin.getY() + RADIUS);
-            for (int x = -RADIUS; x <= RADIUS; x++) {
+            int minY = Math.max(mc.level.getMinY(), origin.getY() - radius);
+            int maxY = Math.min(mc.level.getMaxY(), origin.getY() + radius);
+            for (int x = -radius; x <= radius; x++) {
                 for (int y = minY; y <= maxY; y++) {
-                    for (int z = -RADIUS; z <= RADIUS; z++) {
+                    for (int z = -radius; z <= radius; z++) {
+                        if (x * x + z * z > radius * radius) continue;
                         BlockPos pos = origin.offset(x, y - origin.getY(), z);
-                        if (isOre(mc.level.getBlockState(pos).getBlock())) matches.add(pos.immutable());
+                        if (isOre(mc.level.getBlockState(pos).getBlock())) {
+                            matches.add(pos.immutable());
+                            if (matches.size() >= MAX_RENDERED_MATCHES) return;
+                        }
                     }
                 }
             }
@@ -99,17 +125,18 @@ public final class XrayModule implements ToggleableModule {
     private void render(WorldRenderContext context) {
         if (!enabled || matches.isEmpty() || context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.getCameraEntity() == null) return;
+        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null || lastLevel != mc.level) return;
 
         try {
             Vec3 camera = mc.getCameraEntity().getPosition(1.0F);
-            List<Box> boxes = new ArrayList<>(Math.min(matches.size(), 2048));
+            List<Box> boxes = new ArrayList<>(Math.min(matches.size(), MAX_RENDERED_MATCHES));
+            int currentRadius = radius;
             for (BlockPos pos : matches) {
-                if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
+                if (mc.player.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > currentRadius * currentRadius) continue;
                 AABB box = new AABB(pos).move(-camera.x, -camera.y, -camera.z).inflate(.01);
                 boxes.add(new Box((float) box.minX, (float) box.minY, (float) box.minZ,
                         (float) box.maxX, (float) box.maxY, (float) box.maxZ));
-                if (boxes.size() >= 2048) break;
+                if (boxes.size() >= MAX_RENDERED_MATCHES) break;
             }
             if (boxes.isEmpty()) return;
 
