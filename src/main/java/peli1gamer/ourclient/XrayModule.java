@@ -58,7 +58,7 @@ public final class XrayModule implements ToggleableModule {
             List<BlockPos> next = new ArrayList<>();
             BlockPos origin = mc.player.blockPosition();
             int minY = Math.max(mc.level.getMinY(), origin.getY() - RADIUS);
-            int maxY = Math.min(mc.level.getMaxY(), origin.getY() + RADIUS);
+            int maxY = Math.min(mc.level.getMaxY() - 1, origin.getY() + RADIUS);
             for (int x = -RADIUS; x <= RADIUS; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = -RADIUS; z <= RADIUS; z++) {
