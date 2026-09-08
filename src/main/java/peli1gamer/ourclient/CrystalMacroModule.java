@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.item.Items;
@@ -73,7 +74,6 @@ public final class CrystalMacroModule implements ToggleableModule {
         BlockPos crystalPos = base.above();
         if (!mc.level.isEmptyBlock(crystalPos) || !mc.level.isEmptyBlock(crystalPos.above())) return;
 
-        // End crystals need a clear two-block-high space and no colliding entities.
         AABB space = new AABB(crystalPos.getX(), crystalPos.getY(), crystalPos.getZ(),
                 crystalPos.getX() + 1, crystalPos.getY() + 2, crystalPos.getZ() + 1);
         if (!mc.level.getEntities((Entity) null, space).isEmpty()) return;
@@ -84,9 +84,11 @@ public final class CrystalMacroModule implements ToggleableModule {
         int oldSlot = mc.player.getInventory().getSelectedSlot();
         if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(slot);
         try {
-            mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
-            mc.player.swing(InteractionHand.MAIN_HAND);
-            placeDelay = 1;
+            InteractionResult result = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, hit);
+            if (result.consumesAction()) {
+                mc.player.swing(InteractionHand.MAIN_HAND);
+                placeDelay = 1;
+            }
         } finally {
             if (oldSlot != slot) mc.player.getInventory().setSelectedSlot(oldSlot);
         }
