@@ -24,15 +24,22 @@ public final class OurClient implements ClientModInitializer {
     private static final ClientModuleManager MODULES = new ClientModuleManager();
     private static final Map<String, KeyMapping> KEYBINDS = new LinkedHashMap<>();
     private static ClientConfig config;
+    private static ClientConfigManager configManager;
     private static boolean initialized;
 
     @Override public void onInitializeClient() {
         if (initialized) return;
-        Minecraft client = Minecraft.getInstance(); config = ClientConfig.load(configPath(client)); MODULES.registerDefaults(); applyConfig(); syncAndSaveConfigFromModules();
+        Minecraft client = Minecraft.getInstance();
+        configManager = new ClientConfigManager(client.gameDirectory.toPath());
+        config = ClientConfig.load(configPath(client));
+        MODULES.registerDefaults();
+        applyConfig();
+        syncAndSaveConfigFromModules();
+        configManager.ensureDefault(config);
         registerKey("toggle_aim", GLFW.GLFW_KEY_R); registerKey("toggle_trigger", GLFW.GLFW_KEY_UNKNOWN); registerKey("toggle_crystal", GLFW.GLFW_KEY_UNKNOWN); registerKey("toggle_anchor", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_attribute_swap", GLFW.GLFW_KEY_UNKNOWN); registerKey("toggle_tracers", GLFW.GLFW_KEY_UNKNOWN); registerKey("toggle_esp", GLFW.GLFW_KEY_UNKNOWN);
         registerKey("toggle_xray", GLFW.GLFW_KEY_F8); registerKey("toggle_freecam", GLFW.GLFW_KEY_F6); registerKey("toggle_schematic", GLFW.GLFW_KEY_F7);
-        registerKey("toggle_scaffold", GLFW.GLFW_KEY_G); registerKey("save_base", GLFW.GLFW_KEY_V); registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT);
+        registerKey("toggle_scaffold", GLFW.GLFW_KEY_G); registerKey("save_base", GLFW.GLFW_KEY_V); registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT); registerKey("open_configs", GLFW.GLFW_KEY_P);
         ScreenEvents.AFTER_INIT.register((minecraft, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof TitleScreen)) return;
             try { int width = 120, x = scaledWidth - width - 10, y = scaledHeight - 32; Screens.getButtons(screen).add(Button.builder(Component.literal("Arson Client"), b -> minecraft.setScreen(new OurClientClickGui())).bounds(x, y, width, 20).build()); }
@@ -46,6 +53,7 @@ public final class OurClient implements ClientModInitializer {
     private static void handleKeybinds(Minecraft client) {
         if (client.screen != null) { discardPendingKeybinds(); return; }
         while (KEYBINDS.get("open_clickgui").consumeClick()) { client.setScreen(new OurClientClickGui()); discardPendingKeybinds(); return; }
+        while (KEYBINDS.get("open_configs").consumeClick()) { client.setScreen(new ConfigsScreen()); discardPendingKeybinds(); return; }
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist"); while (KEYBINDS.get("toggle_trigger").consumeClick()) toggle("trigger-bot");
         while (KEYBINDS.get("toggle_crystal").consumeClick()) toggle("crystal-macro"); while (KEYBINDS.get("toggle_anchor").consumeClick()) toggle("anchor-macro"); while (KEYBINDS.get("toggle_attribute_swap").consumeClick()) toggle("attribute-swap");
         while (KEYBINDS.get("toggle_tracers").consumeClick()) toggle("tracers"); while (KEYBINDS.get("toggle_esp").consumeClick()) toggle("esp"); while (KEYBINDS.get("toggle_xray").consumeClick()) toggle("xray");
@@ -68,6 +76,11 @@ public final class OurClient implements ClientModInitializer {
         config.freecam = enabled("freecam"); config.schematicBuilder = enabled("auto-schematic-builder"); config.savedBases = enabled("saved-bases"); config.scaffold = enabled("scaffold"); config.autoWalk = enabled("auto-walk"); config.autoJump = enabled("auto-jump"); config.airJump = enabled("air-jump"); config.sprint = enabled("sprint"); config.autoSprint = enabled("auto-sprint"); config.fullbright = enabled("fullbright"); config.highJump = enabled("high-jump"); config.bunnyHop = enabled("bunny-hop");
         config.fastClimb = enabled("fast-climb"); config.antiVoid = enabled("anti-void"); config.noFall = enabled("no-fall"); config.elytraFly = enabled("elytra-fly"); config.blockEsp = enabled("block-esp");
     }
+    static void loadConfig(ClientConfig loaded) { if (loaded == null) return; config = loaded; applyConfig(); syncAndSaveConfigFromModules(); }
+    public static boolean saveProfile(String name) { syncAndSaveConfigFromModules(); return configManager != null && configManager.save(name, config); }
+    public static boolean loadProfile(String name) { if (configManager == null) return false; ClientConfig loaded = configManager.load(name); if (loaded == null) return false; loadConfig(loaded); return true; }
+    public static boolean deleteProfile(String name) { return configManager != null && configManager.delete(name); }
+    public static java.util.List<String> configProfiles() { return configManager == null ? java.util.List.of() : configManager.list(); }
     private static boolean enabled(String id) { ClientModule module = MODULES.get(id); return module instanceof ToggleableModule toggleable && toggleable.enabled(); }
     public static ClientModuleManager modules() { return MODULES; } public static ClientConfig config() { return config; } public static Path configPath(Minecraft client) { return client.gameDirectory.toPath().resolve("config/our-client1.json"); }
 }
