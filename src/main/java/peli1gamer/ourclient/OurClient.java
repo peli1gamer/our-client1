@@ -108,16 +108,8 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void toggle(String id) {
-        ClientModule module = MODULES.get(id);
-        if (!(module instanceof ToggleableModule toggleable)) return;
-        try {
-            toggleable.setEnabled(!toggleable.enabled());
-            syncAndSaveConfigFromModules();
-        } catch (RuntimeException exception) {
-            LOGGER.error("Failed to toggle client module '{}'", id, exception);
-            try { toggleable.setEnabled(false); } catch (RuntimeException ignored) { }
-            try { syncAndSaveConfigFromModules(); } catch (RuntimeException ignored) { }
-        }
+        if (!MODULES.toggle(id)) return;
+        syncAndSaveConfigFromModules();
     }
 
     private static void applyConfig() {
@@ -142,8 +134,7 @@ public final class OurClient implements ClientModInitializer {
     }
 
     private static void setEnabled(String id, boolean enabled) {
-        ClientModule module = MODULES.get(id);
-        if (module instanceof ToggleableModule toggleable) toggleable.setEnabled(enabled);
+        MODULES.setEnabled(id, enabled);
     }
 
     static void syncAndSaveConfigFromModules() {
