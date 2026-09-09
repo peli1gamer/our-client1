@@ -52,7 +52,6 @@ public final class XrayModule implements ToggleableModule {
         if (!enabled || mc.player == null || mc.level == null || !mc.player.isAlive() || mc.screen != null) return;
 
         if (trackedLevel != mc.level) {
-            // Never carry ore positions from a previous world/dimension into the new one.
             trackedLevel = mc.level;
             matches.clear();
             scanTimer = 0;
@@ -82,7 +81,8 @@ public final class XrayModule implements ToggleableModule {
             matches.addAll(next);
         } catch (RuntimeException exception) {
             matches.clear();
-            setEnabled(false);
+            ClientModuleManager manager = OurClient.modules();
+            if (!manager.setEnabled(id(), false)) setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a scan failure", exception);
             try {
                 OurClient.syncAndSaveConfigFromModules();
@@ -133,7 +133,8 @@ public final class XrayModule implements ToggleableModule {
                 if (++rendered >= MAX_RENDERED_BLOCKS) break;
             }
         } catch (RuntimeException exception) {
-            setEnabled(false);
+            ClientModuleManager manager = OurClient.modules();
+            if (!manager.setEnabled(id(), false)) setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a render failure", exception);
             try {
                 OurClient.syncAndSaveConfigFromModules();
