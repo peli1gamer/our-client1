@@ -306,7 +306,8 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     }
 
     private int findBlockSlot(LocalPlayer player, Block wanted) {
-        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+        int hotbarSize = Math.min(9, player.getInventory().getContainerSize());
+        for (int slot = 0; slot < hotbarSize; slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
             if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == wanted) return slot;
         }
