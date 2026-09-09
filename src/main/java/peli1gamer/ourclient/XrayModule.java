@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lightweight ore overlay using Fabric's world extraction/buffer path. */
+/** Lightweight ore overlay using Fabric's supported world extraction/buffer path. */
 public final class XrayModule implements ToggleableModule {
     private static final int RADIUS = 20;
     private static final int SCAN_INTERVAL_TICKS = 20;
@@ -36,15 +36,9 @@ public final class XrayModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (enabled) {
-            scanTimer = 0;
-            trackedLevel = null;
-            matches.clear();
-        } else {
-            matches.clear();
-            scanTimer = 0;
-            trackedLevel = null;
-        }
+        scanTimer = 0;
+        trackedLevel = null;
+        matches.clear();
     }
 
     @Override
@@ -128,8 +122,9 @@ public final class XrayModule implements ToggleableModule {
 
             for (BlockPos pos : snapshot) {
                 if (camera.distanceToSqr(pos.getX() + .5, pos.getY() + .5, pos.getZ() + .5) > RADIUS * RADIUS) continue;
-                AABB box = new AABB(pos).inflate(.01);
-                emitBox(pose, buffer, box, camera);
+                // WorldRenderContext's matrix stack is already camera-relative. Passing world
+                // coordinates here matches the supported world-render path used by Tracers/ESP.
+                emitBox(pose, buffer, new AABB(pos).inflate(.01));
                 if (++rendered >= MAX_RENDERED_BLOCKS) break;
             }
         } catch (RuntimeException exception) {
@@ -144,9 +139,9 @@ public final class XrayModule implements ToggleableModule {
         }
     }
 
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, Vec3 camera) {
-        float minX = (float) (b.minX - camera.x), minY = (float) (b.minY - camera.y), minZ = (float) (b.minZ - camera.z);
-        float maxX = (float) (b.maxX - camera.x), maxY = (float) (b.maxY - camera.y), maxZ = (float) (b.maxZ - camera.z);
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
+        float minX = (float) b.minX, minY = (float) b.minY, minZ = (float) b.minZ;
+        float maxX = (float) b.maxX, maxY = (float) b.maxY, maxZ = (float) b.maxZ;
         line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
         line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
         line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
