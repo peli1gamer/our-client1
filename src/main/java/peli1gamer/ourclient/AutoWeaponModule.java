@@ -23,17 +23,38 @@ public final class AutoWeaponModule implements ToggleableModule {
         Minecraft client = Minecraft.getInstance();
         this.enabled = enabled;
         if (!enabled) restore(client);
+        else resetState();
     }
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled || client.player == null || client.level == null || client.screen != null) return;
-        if (!(client.hitResult instanceof EntityHitResult hit)) return;
-        if (!(hit.getEntity() instanceof LivingEntity target) || !target.isAlive() || target == client.player) return;
+        if (!enabled) return;
+        if (client.player == null || client.level == null || client.screen != null) {
+            restore(client);
+            return;
+        }
+
+        if (!(client.hitResult instanceof EntityHitResult hit)
+                || !(hit.getEntity() instanceof LivingEntity target)
+                || !target.isAlive()
+                || target == client.player
+                || target.level() != client.player.level()) {
+            restore(client);
+            return;
+        }
 
         int current = client.player.getInventory().getSelectedSlot();
         int best = chooseWeapon(client.player.getInventory(), target);
-        if (best < 0 || best == current) return;
+        if (best < 0) {
+            restore(client);
+            return;
+        }
+
+        if (best == current) {
+            // If the user changed slots away from our active slot, stop owning the slot state.
+            if (activeWeaponSlot >= 0 && current != activeWeaponSlot) resetState();
+            return;
+        }
 
         if (previousSlot < 0) previousSlot = current;
         activeWeaponSlot = best;
@@ -60,7 +81,6 @@ public final class AutoWeaponModule implements ToggleableModule {
             }
         }
 
-        // Match Meteor's useful shield-break behavior: use an axe against a blocking player.
         if (target instanceof Player targetPlayer && targetPlayer.isBlocking() && axe >= 0) return axe;
         if (sword >= 0) return sword;
         return axe;
@@ -71,6 +91,10 @@ public final class AutoWeaponModule implements ToggleableModule {
             && client.player.getInventory().getSelectedSlot() == activeWeaponSlot) {
             client.player.getInventory().setSelectedSlot(previousSlot);
         }
+        resetState();
+    }
+
+    private void resetState() {
         previousSlot = -1;
         activeWeaponSlot = -1;
     }
