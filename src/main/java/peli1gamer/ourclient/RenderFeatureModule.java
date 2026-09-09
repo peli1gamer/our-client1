@@ -119,7 +119,7 @@ public final class RenderFeatureModule implements ToggleableModule {
         switch (feature) {
             case PLAYER_ESP -> renderPlayers(mc, pose, buffer, camera);
             case MOB_ESP -> renderMobs(mc, pose, buffer, camera);
-            case ITEM_ESP -> renderItems(mc, pose, buffer, camera);
+            case ITEM_ESP -> renderItems(mc, context, pose, buffer, camera);
             case STORAGE_ESP -> renderStorage(mc, pose, buffer, camera);
             case VOID_ESP -> renderVoid(mc, pose, buffer);
             case TRAIL -> renderTrail(pose, buffer);
@@ -141,11 +141,18 @@ public final class RenderFeatureModule implements ToggleableModule {
         }
     }
 
-    private static void renderItems(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
+    private static void renderItems(Minecraft mc, WorldRenderContext context, PoseStack.Pose pose,
+                                    VertexConsumer buffer, Vec3 camera) {
+        // Entity hitboxes are stored at the simulation position, while world rendering is
+        // interpolated between ticks. Moving the box by the same interpolation delta keeps
+        // the ESP attached to moving/dropped items instead of visibly lagging behind them.
+        float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(true);
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof ItemEntity item) || !item.isAlive() || outOfRange(item, camera)) continue;
-            // Use the actual ItemEntity hitbox. Do not inflate it or offset it from the entity.
-            emitBox(pose, buffer, item.getBoundingBox(), 1.0f, 0.85f, 0.15f);
+            Vec3 current = item.position();
+            Vec3 rendered = item.getPosition(tickDelta);
+            AABB box = item.getBoundingBox().move(rendered.x - current.x, rendered.y - current.y, rendered.z - current.z);
+            emitBox(pose, buffer, box.inflate(0.03D), 1.0f, 0.85f, 0.15f);
         }
     }
 
