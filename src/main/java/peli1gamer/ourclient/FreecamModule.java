@@ -51,10 +51,6 @@ public final class FreecamModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (!enabled && OurClient.config() != null && OurClient.config().freecam
-                && client.player != null && client.level != null && client.screen == null) {
-            setEnabled(true);
-        }
         if (!enabled) return;
         if (client.player == null || client.level == null) {
             cleanupAfterWorldLoss(client);
@@ -72,7 +68,13 @@ public final class FreecamModule implements ToggleableModule {
             cleanupAfterWorldLoss(client);
             return;
         }
-        if (client.screen != null) return;
+        if (client.screen != null) {
+            // Screens take ownership of the mouse/input pipeline. Leaving a
+            // detached freecam active here causes stale camera/input state to
+            // survive inventory/chat/GUI transitions.
+            cleanupAfterWorldLoss(client);
+            return;
+        }
 
         if (camera == null) {
             enter(client);
