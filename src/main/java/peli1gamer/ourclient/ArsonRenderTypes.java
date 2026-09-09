@@ -29,7 +29,6 @@ public final class ArsonRenderTypes {
     public static final RenderType SEE_THROUGH_LINES = RenderType.of(
             "arson_see_through_lines",
             RenderSetup.builder(SEE_THROUGH_LINES_PIPELINE)
-                    .translucent()
                     .bufferSize(256)
                     .build()
     );
