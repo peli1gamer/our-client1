@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
@@ -43,15 +42,13 @@ public final class TracersModule implements ToggleableModule {
         try {
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
             MultiBufferSource consumers = context.consumers();
-            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+            VertexConsumer buffer = consumers.getBuffer(ArsonRenderTypes.SEE_THROUGH_LINES);
             PoseStack.Pose pose = context.matrices().last();
             Vec3 camera = mc.getCameraEntity().position();
 
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (camera.distanceToSqr(target.position()) > maxRangeSquared) continue;
-
-                // The tracer starts at the camera/cursor origin, not at the player's body.
                 vertex(pose, buffer, camera.x, camera.y, camera.z);
                 vertex(pose, buffer, target.getX(), target.getEyeY(), target.getZ());
             }
