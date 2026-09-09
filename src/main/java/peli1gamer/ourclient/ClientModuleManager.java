@@ -50,13 +50,28 @@ public final class ClientModuleManager {
             register(new ElytraFlyModule());
             register(new BlockESPModule());
 
-            // Native render equivalents. No Meteor classes or dependency are used.
+            // Core native render modules.
             register(new RenderFeatureModule("player-esp", RenderFeatureModule.Feature.PLAYER_ESP));
             register(new RenderFeatureModule("mob-esp", RenderFeatureModule.Feature.MOB_ESP));
             register(new RenderFeatureModule("item-esp", RenderFeatureModule.Feature.ITEM_ESP));
             register(new RenderFeatureModule("storage-esp", RenderFeatureModule.Feature.STORAGE_ESP));
             register(new RenderFeatureModule("void-esp", RenderFeatureModule.Feature.VOID_ESP));
             register(new RenderFeatureModule("trail", RenderFeatureModule.Feature.TRAIL));
+
+            // Glazed-inspired ESP family, reimplemented natively for Arson.
+            register(new GlazedESPModule("glazed-players", GlazedESPModule.Mode.PLAYERS));
+            register(new GlazedESPModule("glazed-mobs", GlazedESPModule.Mode.MOBS));
+            register(new GlazedESPModule("glazed-items", GlazedESPModule.Mode.ITEMS));
+            register(new GlazedESPModule("villager-esp", GlazedESPModule.Mode.VILLAGERS));
+            register(new GlazedESPModule("pillager-esp", GlazedESPModule.Mode.PILLAGERS));
+            register(new GlazedESPModule("wandering-esp", GlazedESPModule.Mode.WANDERING_TRADERS));
+            register(new GlazedESPModule("amethyst-esp", GlazedESPModule.Mode.AMETHYST));
+            register(new GlazedESPModule("beehive-esp", GlazedESPModule.Mode.BEEHIVES));
+            register(new GlazedESPModule("deepslate-esp", GlazedESPModule.Mode.DEEPSLATE));
+            register(new GlazedESPModule("dripstone-esp", GlazedESPModule.Mode.DRIPSTONE));
+            register(new GlazedESPModule("kelp-esp", GlazedESPModule.Mode.KELP));
+            register(new GlazedESPModule("vine-esp", GlazedESPModule.Mode.VINES));
+            register(new GlazedESPModule("light-esp", GlazedESPModule.Mode.LIGHT_BLOCKS));
 
             registerCatalog();
             defaultsRegistered = true;
