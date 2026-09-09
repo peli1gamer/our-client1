@@ -50,14 +50,10 @@ public final class TracersModule implements ToggleableModule {
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (camera.distanceToSqr(target.position()) > maxRangeSquared) continue;
-                vertex(pose, buffer,
-                        (float) (mc.player.getX() - camera.x),
-                        (float) (mc.player.getEyeY() - camera.y),
-                        (float) (mc.player.getZ() - camera.z));
-                vertex(pose, buffer,
-                        (float) (target.getX() - camera.x),
-                        (float) (target.getEyeY() - camera.y),
-                        (float) (target.getZ() - camera.z));
+
+                // The tracer starts at the camera/cursor origin, not at the player's body.
+                vertex(pose, buffer, camera.x, camera.y, camera.z);
+                vertex(pose, buffer, target.getX(), target.getEyeY(), target.getZ());
             }
         } catch (RuntimeException exception) {
             disableAfterRenderFailure(exception);
@@ -75,8 +71,8 @@ public final class TracersModule implements ToggleableModule {
         }
     }
 
-    private static void vertex(PoseStack.Pose pose, VertexConsumer consumer, float x, float y, float z) {
-        consumer.addVertex(pose, x, y, z)
+    private static void vertex(PoseStack.Pose pose, VertexConsumer consumer, double x, double y, double z) {
+        consumer.addVertex(pose, (float) x, (float) y, (float) z)
                 .setColor(1.0f, 1.0f, 1.0f, 0.9f)
                 .setLineWidth(1.5f)
                 .setNormal(pose, 0.0f, 1.0f, 0.0f);
