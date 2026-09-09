@@ -1,15 +1,15 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Items;
+import peli1gamer.ourclient.mixin.AbstractContainerScreenAccessor;
 
 /**
  * Moves a hovered Totem of Undying into the offhand and optionally a preferred hotbar slot.
- * Uses the public 1.21.11 container-screen hover API; no mixin or external client dependency is needed.
+ * Uses a tiny native accessor mixin because the hovered slot is not publicly exposed in 1.21.11.
  */
 public final class HoverTotemModule implements ToggleableModule {
     private static final int OFFHAND_BUTTON = 40;
@@ -111,8 +111,8 @@ public final class HoverTotemModule implements ToggleableModule {
         clickCooldown = CLICK_COOLDOWN_TICKS;
     }
 
-    private static Slot getHoveredSlot(AbstractContainerScreen<?> screen) {
-        return screen.getSlotUnderMouse();
+    private static Slot getHoveredSlot(InventoryScreen screen) {
+        return ((AbstractContainerScreenAccessor) screen).arson$getHoveredSlot();
     }
 
     private static boolean hasTotemInInventory(Minecraft client) {
