@@ -26,11 +26,11 @@ public final class ArsonRenderTypes {
             .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)
             .build();
 
-    public static final RenderType SEE_THROUGH_LINES = RenderType.of(
+    public static final RenderType SEE_THROUGH_LINES = RenderType.create(
             "arson_see_through_lines",
             RenderSetup.builder(SEE_THROUGH_LINES_PIPELINE)
                     .bufferSize(256)
-                    .build()
+                    .createRenderSetup()
     );
 
     private ArsonRenderTypes() { }
