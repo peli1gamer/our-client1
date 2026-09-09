@@ -22,6 +22,13 @@ public final class ClientConfig {
     public boolean schematicBuilder;
     public boolean savedBases = true;
     public boolean scaffold;
+    public boolean autoWalk;
+    public boolean autoJump;
+    public boolean airJump;
+    public boolean sprint;
+    public boolean fullbright;
+    public boolean highJump;
+    public boolean bunnyHop;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
     public int schematicPlacementsPerTick = 1;
