@@ -14,7 +14,6 @@ import net.minecraft.world.phys.Vec3;
 public final class TracersModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
     private static boolean renderHookInstalled;
-    private static TracersModule activeInstance;
     private boolean enabled;
 
     public TracersModule() { installRenderHook(); }
@@ -24,16 +23,14 @@ public final class TracersModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (enabled) activeInstance = this;
-        else if (activeInstance == this) activeInstance = null;
     }
 
     private static void installRenderHook() {
         if (renderHookInstalled) return;
         renderHookInstalled = true;
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            TracersModule instance = activeInstance;
-            if (instance != null) instance.render(context);
+            ClientModule module = OurClient.modules().get("tracers");
+            if (module instanceof TracersModule instance && instance.enabled()) instance.render(context);
         });
     }
 
