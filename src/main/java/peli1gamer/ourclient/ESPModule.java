@@ -51,7 +51,7 @@ public final class ESPModule implements ToggleableModule {
             for (Player target : mc.level.players()) {
                 if (target == mc.player || !target.isAlive()) continue;
                 if (camera.distanceToSqr(target.position()) > maxRangeSquared) continue;
-                emitBox(pose, buffer, target.getBoundingBox(), camera);
+                emitBox(pose, buffer, target.getBoundingBox());
             }
         } catch (RuntimeException exception) {
             disableAfterRenderFailure("ESP", exception);
@@ -69,9 +69,9 @@ public final class ESPModule implements ToggleableModule {
         }
     }
 
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, Vec3 camera) {
-        float minX = (float) (b.minX - camera.x), minY = (float) (b.minY - camera.y), minZ = (float) (b.minZ - camera.z);
-        float maxX = (float) (b.maxX - camera.x), maxY = (float) (b.maxY - camera.y), maxZ = (float) (b.maxZ - camera.z);
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b) {
+        float minX = (float) b.minX, minY = (float) b.minY, minZ = (float) b.minZ;
+        float maxX = (float) b.maxX, maxY = (float) b.maxY, maxZ = (float) b.maxZ;
         line(pose, consumer, minX, minY, minZ, maxX, minY, minZ);
         line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
         line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ);
