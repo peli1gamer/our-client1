@@ -120,7 +120,8 @@ public final class OurClientClickGui extends Screen {
         return switch (module.id()) {
             case "aim-assist", "trigger-bot", "crystal-macro", "anchor-macro", "attribute-swap", "auto-weapon" -> 0;
             case "auto-walk", "auto-jump", "air-jump", "sprint", "auto-sprint", "freecam", "high-jump", "bunny-hop", "fast-climb", "anti-void", "no-fall", "elytra-fly" -> 1;
-            case "tracers", "esp", "xray", "fullbright", "block-esp" -> 2;
+            case "tracers", "esp", "xray", "fullbright", "block-esp", "player-esp", "mob-esp", "item-esp", "storage-esp", "void-esp", "trail",
+                 "glazed-players", "glazed-mobs", "glazed-items", "villager-esp", "pillager-esp", "wandering-esp", "amethyst-esp", "beehive-esp", "deepslate-esp", "dripstone-esp", "kelp-esp", "vine-esp", "light-esp" -> 2;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
             case "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter", "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer" -> 5;
             default -> 4;
@@ -164,21 +165,30 @@ public final class OurClientClickGui extends Screen {
     }
 
     private void adjustSetting(int direction) { ClientConfig c = OurClient.config(); if (c == null || editingSetting == null) return; switch (editingSetting) {
-        case "range" -> c.aimRange = Math.max(1f, Math.min(64f, c.aimRange + direction)); case "smoothness" -> c.aimSmoothing = Math.max(.01f, Math.min(1f, c.aimSmoothing + direction * .01f)); case "placements" -> c.schematicPlacementsPerTick = Math.max(1, Math.min(20, c.schematicPlacementsPerTick + direction)); default -> { return; }
-    } try { OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException exception) { OurClient.LOGGER.error("Could not persist ClickGUI setting '{}'", editingSetting, exception); } }
+        case "range" -> c.aimRange = Math.max(1f, Math.min(32f, c.aimRange + direction));
+        case "smoothness" -> c.aimSmoothing = Math.max(0.01f, Math.min(1f, c.aimSmoothing + direction * 0.05f));
+        case "placements" -> c.schematicPlacementsPerTick = Math.max(1, Math.min(64, c.schematicPlacementsPerTick + direction));
+        default -> { return; }
+    } try { OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException e) { OurClient.LOGGER.error("Could not persist ClickGUI setting change", e); } }
 
     @Override public boolean keyPressed(KeyEvent event) {
-        int key = event.key(); if (key == GLFW.GLFW_KEY_ESCAPE) { if (editingSearch || editingSetting != null) { editingSearch = false; editingSetting = null; return true; } if (settingsId != null) { settingsId = null; return true; } onClose(); return true; }
-        if (settingsId != null && editingSetting != null && (key == GLFW.GLFW_KEY_LEFT || key == GLFW.GLFW_KEY_RIGHT)) { adjustSetting(key == GLFW.GLFW_KEY_RIGHT ? 1 : -1); return true; }
-        if (editingSearch) { if (key == GLFW.GLFW_KEY_BACKSPACE) { if (!search.isEmpty()) search = search.substring(0, search.length() - 1); selectedIndex = 0; scroll = 0; } else if (key == GLFW.GLFW_KEY_ENTER) editingSearch = false; return true; }
-        if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) { List<ClientModule> modules = modulesForCategory(); if (!modules.isEmpty()) { selectedIndex = Math.max(0, Math.min(modules.size() - 1, selectedIndex + (key == GLFW.GLFW_KEY_DOWN ? 1 : -1))); int visibleRows = Math.max(1, (height - 16 - (16 + 47 + 40) - 14) / 34); if (selectedIndex < scroll) scroll = selectedIndex; if (selectedIndex >= scroll + visibleRows) scroll = selectedIndex - visibleRows + 1; } return true; }
-        if (key == GLFW.GLFW_KEY_ENTER) { List<ClientModule> modules = modulesForCategory(); if (!modules.isEmpty()) { ClientModule m = modules.get(Math.min(selectedIndex, modules.size() - 1)); if (m instanceof ToggleableModule && !(m instanceof CatalogModule)) toggle(m.id()); } return true; }
-        if (key == GLFW.GLFW_KEY_O) { List<ClientModule> modules = modulesForCategory(); if (!modules.isEmpty()) { ClientModule m = modules.get(Math.min(selectedIndex, modules.size() - 1)); if (!(m instanceof CatalogModule)) { settingsId = m.id(); editingSetting = null; } } return true; }
-        return true;
+        int key = event.key(); if (key == GLFW.GLFW_KEY_ESCAPE) { if (settingsId != null) { settingsId = null; editingSetting = null; } else if (editingSearch) { editingSearch = false; } else onClose(); return true; }
+        if (editingSearch) { if (key == GLFW.GLFW_KEY_BACKSPACE && !search.isEmpty()) { search = search.substring(0, search.length() - 1); selectedIndex = 0; scroll = 0; return true; } if (key == GLFW.GLFW_KEY_ENTER) { editingSearch = false; return true; } }
+        List<ClientModule> modules = modulesForCategory();
+        if (key == GLFW.GLFW_KEY_UP) { selectedIndex = Math.max(0, selectedIndex - 1); ensureSelectionVisible(modules.size()); return true; }
+        if (key == GLFW.GLFW_KEY_DOWN) { selectedIndex = Math.min(Math.max(0, modules.size() - 1), selectedIndex + 1); ensureSelectionVisible(modules.size()); return true; }
+        if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (m instanceof ToggleableModule) toggle(m.id()); return true; }
+        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) { ClientModule m = modules.get(selectedIndex); if (!(m instanceof CatalogModule)) { settingsId = m.id(); editingSetting = null; } return true; }
+        return super.keyPressed(event);
     }
-    @Override public boolean charTyped(CharacterEvent event) { if (!editingSearch) return true; char c = (char) event.codepoint(); if (c >= 32 && c <= 126 && search.length() < 40) { search += c; selectedIndex = 0; scroll = 0; } return true; }
-    @Override public void onClose() { settingsId = null; editingSetting = null; editingSearch = false; super.onClose(); }
-    private void clampScroll() { List<ClientModule> modules = modulesForCategory(); int listTop = 16 + 47 + 40, listBottom = height - 16 - 14, visibleRows = Math.max(1, (listBottom - listTop) / 34), maxScroll = Math.max(0, modules.size() - visibleRows); scroll = Math.max(0, Math.min(scroll, maxScroll)); }
-    private static boolean inside(double mx, double my, double x, double y, double w, double h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
-    private static String pretty(String id) { StringBuilder out = new StringBuilder(); for (String part : id.split("-")) { if (part.isEmpty()) continue; if (out.length() > 0) out.append(' '); out.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1)); } return out.toString(); }
+
+    @Override public boolean charTyped(CharacterEvent event) {
+        if (editingSearch) { char c = event.codepoint() <= Character.MAX_VALUE ? (char) event.codepoint() : 0; if (c >= 32 && c != 127) { search += c; selectedIndex = 0; scroll = 0; return true; } }
+        return super.charTyped(event);
+    }
+
+    private void ensureSelectionVisible(int size) { int listTop = 16 + 47 + 40, listBottom = height - 16 - 14, visible = Math.max(1, (listBottom - listTop) / 34); if (selectedIndex < scroll) scroll = selectedIndex; else if (selectedIndex >= scroll + visible) scroll = selectedIndex - visible + 1; scroll = Math.max(0, Math.min(Math.max(0, size - visible), scroll)); }
+    private void clampScroll() { List<ClientModule> modules = modulesForCategory(); int listTop = 16 + 47 + 40, listBottom = height - 16 - 14, visible = Math.max(1, (listBottom - listTop) / 34); scroll = Math.max(0, Math.min(Math.max(0, modules.size() - visible), scroll)); }
+    private static boolean inside(double mx, double my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
+    private static String pretty(String id) { String[] parts = id.split("-"); StringBuilder b = new StringBuilder(); for (String p : parts) { if (p.isEmpty()) continue; if (b.length() > 0) b.append(' '); b.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1)); } return b.toString(); }
 }
