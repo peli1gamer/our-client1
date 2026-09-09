@@ -3,7 +3,8 @@
   "package": "peli1gamer.ourclient.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "AbstractContainerScreenAccessor"
+    "AbstractContainerScreenAccessor",
+    "TargetTrackerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
