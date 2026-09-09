@@ -15,7 +15,6 @@ import net.minecraft.world.phys.Vec3;
 public final class ESPModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
     private static boolean renderHookInstalled;
-    private static ESPModule activeInstance;
     private boolean enabled;
 
     public ESPModule() { installRenderHook(); }
@@ -25,16 +24,14 @@ public final class ESPModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (enabled) activeInstance = this;
-        else if (activeInstance == this) activeInstance = null;
     }
 
     private static void installRenderHook() {
         if (renderHookInstalled) return;
         renderHookInstalled = true;
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            ESPModule instance = activeInstance;
-            if (instance != null) instance.render(context);
+            ClientModule module = OurClient.modules().get("esp");
+            if (module instanceof ESPModule instance && instance.enabled()) instance.render(context);
         });
     }
 
