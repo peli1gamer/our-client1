@@ -51,9 +51,6 @@ public final class OurClient implements ClientModInitializer {
         registerKey("save_base", GLFW.GLFW_KEY_V);
         registerKey("open_clickgui", GLFW.GLFW_KEY_RIGHT_SHIFT);
 
-        // Add a safe, native button to the vanilla title screen. Fabric's screen
-        // event runs after vanilla has finished constructing its widgets, so this
-        // does not require a mixin into TitleScreen and survives screen resizing.
         ScreenEvents.AFTER_INIT.register((minecraft, screen, scaledWidth, scaledHeight) -> {
             if (!(screen instanceof TitleScreen)) return;
             try {
@@ -135,6 +132,13 @@ public final class OurClient implements ClientModInitializer {
         setEnabled("auto-schematic-builder", config.schematicBuilder);
         setEnabled("saved-bases", config.savedBases);
         setEnabled("scaffold", config.scaffold);
+        setEnabled("auto-walk", config.autoWalk);
+        setEnabled("auto-jump", config.autoJump);
+        setEnabled("air-jump", config.airJump);
+        setEnabled("sprint", config.sprint);
+        setEnabled("fullbright", config.fullbright);
+        setEnabled("high-jump", config.highJump);
+        setEnabled("bunny-hop", config.bunnyHop);
     }
 
     private static void setEnabled(String id, boolean enabled) {
@@ -160,6 +164,13 @@ public final class OurClient implements ClientModInitializer {
         config.schematicBuilder = enabled("auto-schematic-builder");
         config.savedBases = enabled("saved-bases");
         config.scaffold = enabled("scaffold");
+        config.autoWalk = enabled("auto-walk");
+        config.autoJump = enabled("auto-jump");
+        config.airJump = enabled("air-jump");
+        config.sprint = enabled("sprint");
+        config.fullbright = enabled("fullbright");
+        config.highJump = enabled("high-jump");
+        config.bunnyHop = enabled("bunny-hop");
     }
 
     private static boolean enabled(String id) {
