@@ -168,8 +168,13 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (completed.cardinality() >= schematic.blocks().size()) {
             client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
                     "Schematic complete: " + schematic.name()), true);
-            setEnabled(false);
-            OurClient.syncAndSaveConfigFromModules();
+            ClientModuleManager manager = OurClient.modules();
+            if (!manager.setEnabled(id(), false)) setEnabled(false);
+            try {
+                OurClient.syncAndSaveConfigFromModules();
+            } catch (RuntimeException exception) {
+                OurClient.LOGGER.error("Could not persist schematic builder completion state", exception);
+            }
             return;
         }
 
