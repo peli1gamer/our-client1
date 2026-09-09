@@ -28,7 +28,7 @@ public final class DoubleSetting extends Setting<Double> {
         public Builder title(String v) { title = v; return this; }
         public Builder description(String v) { description = v; return this; }
         public Builder defaultValue(double v) { defaultValue = v; return this; }
-        public Builder.range(double min, double max) { this.min = Math.min(min, max); this.max = Math.max(min, max); return this; }
+        public Builder range(double min, double max) { this.min = Math.min(min, max); this.max = Math.max(min, max); return this; }
         public Builder min(double v) { min = v; if (max < min) max = min; return this; }
         public Builder max(double v) { max = v; if (min > max) min = max; return this; }
         public Builder sliderRange(double min, double max) { return range(min, max); }
