@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Collection of setting groups owned by one module or feature. */
-public final class Settings implements Iterable<SettingGroup> {
+public class Settings implements Iterable<SettingGroup> {
     private final List<SettingGroup> groups = new ArrayList<>();
     private SettingGroup defaultGroup;
 
@@ -19,16 +19,11 @@ public final class Settings implements Iterable<SettingGroup> {
         if (defaultGroup == null) defaultGroup = createGroup("General");
         return defaultGroup;
     }
-
     public List<SettingGroup> groups() { return List.copyOf(groups); }
-
     public Setting<?> get(String groupName, String settingName) {
-        for (SettingGroup group : groups) {
-            if (group.name().equals(groupName)) return group.get(settingName);
-        }
+        for (SettingGroup group : groups) if (group.name().equals(groupName)) return group.get(settingName);
         return null;
     }
-
     public Setting<?> get(String settingName) {
         for (SettingGroup group : groups) {
             Setting<?> setting = group.get(settingName);
@@ -36,14 +31,10 @@ public final class Settings implements Iterable<SettingGroup> {
         }
         return null;
     }
-
     public List<Setting<?>> visibleSettings() {
         List<Setting<?>> result = new ArrayList<>();
-        for (SettingGroup group : groups) if (group.expanded()) {
-            for (Setting<?> setting : group.all()) if (setting.visible()) result.add(setting);
-        }
+        for (SettingGroup group : groups) if (group.expanded()) for (Setting<?> setting : group.all()) if (setting.visible()) result.add(setting);
         return List.copyOf(result);
     }
-
     @Override public java.util.Iterator<SettingGroup> iterator() { return groups().iterator(); }
 }
