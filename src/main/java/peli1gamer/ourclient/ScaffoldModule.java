@@ -67,7 +67,7 @@ public final class ScaffoldModule implements ToggleableModule {
         if (tryPlace(client, target)) return;
         for (Direction direction : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST}) {
             BlockPos support = target.relative(direction);
-            if (client.level.getBlockState(support).isSolidRender()
+            if (hasUsableSupport(client, support)
                     && tryPlaceAgainst(client, target, support, direction.getOpposite())) return;
         }
     }
@@ -75,10 +75,15 @@ public final class ScaffoldModule implements ToggleableModule {
     private boolean tryPlace(Minecraft client, BlockPos target) {
         for (Direction direction : Direction.values()) {
             BlockPos support = target.relative(direction);
-            if (!client.level.getBlockState(support).isSolidRender()) continue;
+            if (!hasUsableSupport(client, support)) continue;
             if (tryPlaceAgainst(client, target, support, direction.getOpposite())) return true;
         }
         return false;
+    }
+
+    private boolean hasUsableSupport(Minecraft client, BlockPos support) {
+        if (!client.level.isInWorldBounds(support)) return false;
+        return !client.level.getBlockState(support).getCollisionShape(client.level, support).isEmpty();
     }
 
     private boolean tryPlaceAgainst(Minecraft client, BlockPos target, BlockPos support, Direction face) {
