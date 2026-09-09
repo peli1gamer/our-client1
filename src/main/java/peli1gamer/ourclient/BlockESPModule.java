@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -14,10 +13,7 @@ import net.minecraft.world.phys.AABB;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Lightweight block ESP. The search runs once per client tick and the renderer
- * only draws the cached results, avoiding a full cube scan every rendered frame.
- */
+/** Lightweight block ESP with cached scanning and see-through rendering. */
 public final class BlockESPModule implements ToggleableModule {
     private static final int DEFAULT_RADIUS = 24;
     private static final int MAX_RESULTS = 256;
@@ -28,14 +24,9 @@ public final class BlockESPModule implements ToggleableModule {
     private boolean enabled;
     private int radius = DEFAULT_RADIUS;
 
-    public BlockESPModule() {
-        installHook();
-    }
-
+    public BlockESPModule() { installHook(); }
     @Override public String id() { return "block-esp"; }
-    @Override public boolean enabled() {
-        return enabled;
-    }
+    @Override public boolean enabled() { return enabled; }
 
     @Override
     public void setEnabled(boolean enabled) {
@@ -53,7 +44,6 @@ public final class BlockESPModule implements ToggleableModule {
             if (active == this && !enabled) active = null;
             return;
         }
-
         matches.clear();
         BlockPos center = client.player.blockPosition();
         int r = radius;
@@ -77,9 +67,8 @@ public final class BlockESPModule implements ToggleableModule {
         BlockESPModule module = active;
         if (module == null || !module.enabled || context == null || context.matrices() == null
                 || context.consumers() == null || module.matches.isEmpty()) return;
-
         try {
-            VertexConsumer consumer = context.consumers().getBuffer(RenderTypes.lines());
+            VertexConsumer consumer = context.consumers().getBuffer(ArsonRenderTypes.SEE_THROUGH_LINES);
             PoseStack.Pose pose = context.matrices().last();
             for (BlockPos pos : module.matches) emitBox(pose, consumer, new AABB(pos));
         } catch (RuntimeException exception) {
@@ -100,26 +89,16 @@ public final class BlockESPModule implements ToggleableModule {
     }
 
     private static void emitBox(PoseStack.Pose pose, VertexConsumer c, AABB b) {
-        line(pose, c, b.minX, b.minY, b.minZ, b.maxX, b.minY, b.minZ);
-        line(pose, c, b.maxX, b.minY, b.minZ, b.maxX, b.minY, b.maxZ);
-        line(pose, c, b.maxX, b.minY, b.maxZ, b.minX, b.minY, b.maxZ);
-        line(pose, c, b.minX, b.minY, b.maxZ, b.minX, b.minY, b.minZ);
-        line(pose, c, b.minX, b.maxY, b.minZ, b.maxX, b.maxY, b.minZ);
-        line(pose, c, b.maxX, b.maxY, b.minZ, b.maxX, b.maxY, b.maxZ);
-        line(pose, c, b.maxX, b.maxY, b.maxZ, b.minX, b.maxY, b.maxZ);
-        line(pose, c, b.minX, b.maxY, b.maxZ, b.minX, b.maxY, b.minZ);
-        line(pose, c, b.minX, b.minY, b.minZ, b.minX, b.maxY, b.minZ);
-        line(pose, c, b.maxX, b.minY, b.minZ, b.maxX, b.maxY, b.minZ);
-        line(pose, c, b.maxX, b.minY, b.maxZ, b.maxX, b.maxY, b.maxZ);
-        line(pose, c, b.minX, b.minY, b.maxZ, b.minX, b.maxY, b.maxZ);
+        line(pose,c,b.minX,b.minY,b.minZ,b.maxX,b.minY,b.minZ); line(pose,c,b.maxX,b.minY,b.minZ,b.maxX,b.minY,b.maxZ);
+        line(pose,c,b.maxX,b.minY,b.maxZ,b.minX,b.minY,b.maxZ); line(pose,c,b.minX,b.minY,b.maxZ,b.minX,b.minY,b.minZ);
+        line(pose,c,b.minX,b.maxY,b.minZ,b.maxX,b.maxY,b.minZ); line(pose,c,b.maxX,b.maxY,b.minZ,b.maxX,b.maxY,b.maxZ);
+        line(pose,c,b.maxX,b.maxY,b.maxZ,b.minX,b.maxY,b.maxZ); line(pose,c,b.minX,b.maxY,b.maxZ,b.minX,b.maxY,b.minZ);
+        line(pose,c,b.minX,b.minY,b.minZ,b.minX,b.maxY,b.minZ); line(pose,c,b.maxX,b.minY,b.minZ,b.maxX,b.maxY,b.minZ);
+        line(pose,c,b.maxX,b.minY,b.maxZ,b.maxX,b.maxY,b.maxZ); line(pose,c,b.minX,b.minY,b.maxZ,b.minX,b.maxY,b.maxZ);
     }
 
-    private static void line(PoseStack.Pose pose, VertexConsumer c,
-                             double x1, double y1, double z1,
-                             double x2, double y2, double z2) {
-        c.addVertex(pose, (float) x1, (float) y1, (float) z1)
-                .setColor(1, 0.42f, 0, 0.9f).setLineWidth(1.5f).setNormal(pose, 0, 1, 0);
-        c.addVertex(pose, (float) x2, (float) y2, (float) z2)
-                .setColor(1, 0.42f, 0, 0.9f).setLineWidth(1.5f).setNormal(pose, 0, 1, 0);
+    private static void line(PoseStack.Pose pose, VertexConsumer c,double x1,double y1,double z1,double x2,double y2,double z2) {
+        c.addVertex(pose,(float)x1,(float)y1,(float)z1).setColor(1,0.42f,0,0.9f).setLineWidth(1.5f).setNormal(pose,0,1,0);
+        c.addVertex(pose,(float)x2,(float)y2,(float)z2).setColor(1,0.42f,0,0.9f).setLineWidth(1.5f).setNormal(pose,0,1,0);
     }
 }
