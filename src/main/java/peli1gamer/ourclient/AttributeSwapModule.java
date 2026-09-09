@@ -2,6 +2,7 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -13,6 +14,7 @@ public final class AttributeSwapModule implements ToggleableModule {
     private boolean onlyWhenAttacking = true;
     private int previousSlot = -1;
     private int activeWeaponSlot = -1;
+    private ClientLevel activeLevel;
     private LocalPlayer activePlayer;
 
     @Override public String id() { return "attribute-swap"; }
@@ -26,9 +28,11 @@ public final class AttributeSwapModule implements ToggleableModule {
         if (enabled) {
             previousSlot = -1;
             activeWeaponSlot = -1;
+            activeLevel = mc.level;
             activePlayer = mc.player;
         } else {
             restore(mc.player);
+            activeLevel = null;
             activePlayer = null;
         }
     }
@@ -43,12 +47,19 @@ public final class AttributeSwapModule implements ToggleableModule {
         }
 
         if (activePlayer != mc.player) {
-            // A respawn/world transition gives us a different inventory owner.
+            // A respawn/player replacement gives us a different inventory owner.
             // Never apply the old player's saved slot to the new player.
             previousSlot = -1;
             activeWeaponSlot = -1;
             activePlayer = mc.player;
         }
+
+        if (activeLevel != null && activeLevel != mc.level) {
+            // The same player object can survive a dimension transition. Clear
+            // any slot ownership before continuing in the new level.
+            restore(mc.player);
+        }
+        activeLevel = mc.level;
 
         boolean attacking = mc.options.keyAttack.isDown();
         if (onlyWhenAttacking && !attacking) {
