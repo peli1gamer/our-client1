@@ -35,7 +35,7 @@ public final class SavedBasesModule implements ToggleableModule {
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (loaded) return;
+        if (!enabled || loaded) return;
         if (loadRetryCooldown > 0) {
             loadRetryCooldown--;
             return;
