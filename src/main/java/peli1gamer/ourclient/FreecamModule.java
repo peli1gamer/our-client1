@@ -151,14 +151,10 @@ public final class FreecamModule implements ToggleableModule {
     }
 
     private void syncDisabledConfig() {
-        ClientConfig config = OurClient.config();
-        if (config != null) {
-            config.freecam = false;
-            try {
-                config.save(OurClient.configPath(Minecraft.getInstance()));
-            } catch (RuntimeException exception) {
-                OurClient.LOGGER.warn("Could not persist freecam shutdown state", exception);
-            }
+        try {
+            OurClient.syncAndSaveConfigFromModules();
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.warn("Could not persist freecam shutdown state", exception);
         }
     }
 
