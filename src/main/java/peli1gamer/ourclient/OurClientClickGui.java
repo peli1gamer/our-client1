@@ -178,21 +178,11 @@ public final class OurClientClickGui extends Screen {
         g.fill(x, y, x + w, y + 3, ACCENT);
 
         g.drawString(font, pretty(settingsId), x + 18, y + 16, TEXT, false);
-        g.drawString(font, "MODULE SETTINGS", x + 18, y + 32, MUTED, false);
-        g.drawString(font, "ESC closes", x + w - 82, y + 20, MUTED, false);
-
-        if (module instanceof CatalogModule) {
-            g.drawString(font, "This module is planned and not implemented yet.", x + 18, y + 66, PLANNED, false);
-            g.drawString(font, "It is intentionally non-functional in this build.", x + 18, y + 84, MUTED, false);
-            return;
-        }
-
         int row = y + 54;
         if (module instanceof ToggleableModule t) {
             setting(g, x, row, w, "Enabled", t.enabled() ? "ON" : "OFF");
             row += 38;
         }
-
         ClientConfig c = OurClient.config();
         if (c != null && settingsId.equals("aim-assist")) {
             setting(g, x, row, w, "Range", String.format(Locale.ROOT, "%.1f", c.aimRange));
@@ -200,22 +190,21 @@ public final class OurClientClickGui extends Screen {
             setting(g, x, row, w, "Smoothness", String.format(Locale.ROOT, "%.2f", c.aimSmoothing));
         } else if (c != null && settingsId.equals("auto-schematic-builder")) {
             setting(g, x, row, w, "Placements / tick", Integer.toString(c.schematicPlacementsPerTick));
-        } else {
-            g.drawString(font, "No adjustable settings yet.", x + 18, row + 9, MUTED, false);
         }
-
+        g.drawString(font, "Wheel / ← → changes selected setting", x + 18, y + h - 42, MUTED, false);
         if (editingSetting != null) {
             g.drawString(font, "Editing: " + editingSetting + "  (wheel / ← →)", x + 18, y + h - 28, ACCENT, false);
         } else {
-            g.drawString(font, "Click a setting value to edit it", x + 18, y + h - 28, MUTED, false);
+            g.drawString(font, "Right-click a module to open settings", x + 18, y + h - 28, MUTED, false);
         }
+        g.drawString(font, "CLOSE", x + w - 75, y + 17, TEXT, false);
     }
 
     private int settingsHeight() {
-        if (settingsId != null && settingsId.equals("aim-assist")) return 190;
-        if (settingsId != null && settingsId.equals("auto-schematic-builder")) return 155;
-        if (settingsId != null && OurClient.modules().get(settingsId) instanceof CatalogModule) return 135;
-        return 135;
+        if (settingsId == null) return 120;
+        if (settingsId.equals("aim-assist")) return 190;
+        if (settingsId.equals("auto-schematic-builder")) return 150;
+        return 130;
     }
 
     private void setting(GuiGraphics g, int x, int y, int w, String label, String value) {
@@ -293,6 +282,10 @@ public final class OurClientClickGui extends Screen {
 
         for (int i = 0; i < modules.size(); i++) {
             int y = listTop + (i - scroll) * rowH;
+            // Only visible rows own pointer input. Without this check, an
+            // off-screen row can overlap the search/header area after scrolling
+            // and steal clicks intended for the GUI controls.
+            if (y + 30 < listTop || y >= listBottom) continue;
             if (!inside(mx, my, contentX + 14, y, contentW - 28, 30)) continue;
             selectedIndex = i;
             ClientModule module = modules.get(i);
