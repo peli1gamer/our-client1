@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
@@ -167,7 +166,7 @@ public final class GlazedESPModule implements ToggleableModule {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
         MultiBufferSource consumers = context.consumers();
-        VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+        VertexConsumer buffer = consumers.getBuffer(ArsonRenderTypes.SEE_THROUGH_LINES);
         PoseStack.Pose pose = context.matrices().last();
         Vec3 camera = mc.getCameraEntity().position();
         if (isBlockMode()) {
