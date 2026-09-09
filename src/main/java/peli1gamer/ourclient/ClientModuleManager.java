@@ -126,9 +126,8 @@ public final class ClientModuleManager {
                 module.onClientTick(client);
             } catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
-                if (module instanceof ToggleableModule toggleable) {
-                    try { toggleable.setEnabled(false); }
-                    catch (RuntimeException disableException) { OurClient.LOGGER.error("Could not disable failed client module '{}'", id, disableException); }
+                if (module instanceof ToggleableModule) {
+                    setEnabled(id, false);
                 }
                 try { OurClient.syncAndSaveConfigFromModules(); }
                 catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
