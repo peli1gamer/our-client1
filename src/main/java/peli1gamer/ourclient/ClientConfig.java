@@ -14,6 +14,7 @@ public final class ClientConfig {
     public boolean aimAssist;
     public boolean triggerBot;
     public boolean crystalMacro;
+    public boolean anchorMacro;
     public boolean attributeSwap;
     public boolean autoWeapon;
     public boolean tracers;
