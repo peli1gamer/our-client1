@@ -99,14 +99,21 @@ public final class ClientModuleManager {
         if (toggleable.enabled() == enabled) return true;
         try {
             toggleable.setEnabled(enabled);
-            return toggleable.enabled() == enabled;
+            if (toggleable.enabled() == enabled) return true;
+
+            // A module must not be left in a half-transitioned state when its
+            // implementation returns without applying the requested state.
+            try { toggleable.setEnabled(!enabled); }
+            catch (RuntimeException rollbackException) {
+                OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException);
+            }
+            return false;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
-            if (enabled) {
-                try { toggleable.setEnabled(false); }
-                catch (RuntimeException disableException) {
-                    OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, disableException);
-                }
+            try {
+                toggleable.setEnabled(!enabled);
+            } catch (RuntimeException rollbackException) {
+                OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException);
             }
             return false;
         }
