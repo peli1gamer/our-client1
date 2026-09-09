@@ -28,6 +28,12 @@ public final class AimAssistModule implements ToggleableModule {
             return;
         }
 
+        ToggleableModule freecam = OurClient.modules().get("freecam") instanceof ToggleableModule module ? module : null;
+        if (freecam != null && freecam.enabled()) {
+            target = null;
+            return;
+        }
+
         ClientConfig config = OurClient.config();
         if (config == null) return;
 
