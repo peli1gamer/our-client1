@@ -11,9 +11,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Lightweight block ESP. It deliberately scans a bounded cube and caps the
- * number of rendered results so enabling it cannot create an unbounded render loop.
+ * Lightweight block ESP. The search runs once per client tick and the renderer
+ * only draws the cached results, avoiding a full cube scan every rendered frame.
  */
 public final class BlockESPModule implements ToggleableModule {
     private static final int DEFAULT_RADIUS = 24;
@@ -21,6 +24,7 @@ public final class BlockESPModule implements ToggleableModule {
     private static boolean hookInstalled;
     private static BlockESPModule active;
 
+    private final List<BlockPos> matches = new ArrayList<>();
     private boolean enabled;
     private int radius = DEFAULT_RADIUS;
 
@@ -29,18 +33,34 @@ public final class BlockESPModule implements ToggleableModule {
     }
 
     @Override public String id() { return "block-esp"; }
-    @Override public boolean enabled() { return enabled; }
+    @Override public boolean enabled() {
+        return enabled;
+    }
 
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        active = enabled ? this : (active == this ? null : active);
+        if (enabled) active = this;
+        else if (active == this) active = null;
+        if (!enabled) matches.clear();
     }
 
     @Override
     public void onClientTick(Minecraft client) {
-        if (radius < 4) radius = 4;
-        if (radius > 48) radius = 48;
+        radius = Math.max(4, Math.min(48, radius));
+        if (!enabled || client.player == null || client.level == null || client.player.isSpectator()) {
+            matches.clear();
+            if (active == this && !enabled) active = null;
+            return;
+        }
+
+        matches.clear();
+        BlockPos center = client.player.blockPosition();
+        int r = radius;
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
+            if (matches.size() >= MAX_RESULTS) break;
+            if (isInteresting(client.level.getBlockState(pos).getBlock())) matches.add(pos.immutable());
+        }
     }
 
     public int radius() { return radius; }
@@ -56,27 +76,15 @@ public final class BlockESPModule implements ToggleableModule {
     private static void render(WorldRenderContext context) {
         BlockESPModule module = active;
         if (module == null || !module.enabled || context == null || context.matrices() == null
-                || context.consumers() == null) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
+                || context.consumers() == null || module.matches.isEmpty()) return;
 
         try {
             VertexConsumer consumer = context.consumers().getBuffer(RenderTypes.lines());
             PoseStack.Pose pose = context.matrices().last();
-            BlockPos center = mc.player.blockPosition();
-            int r = module.radius;
-            int found = 0;
-
-            for (BlockPos pos : BlockPos.betweenClosed(center.offset(-r, -r, -r), center.offset(r, r, r))) {
-                if (found >= MAX_RESULTS) break;
-                Block block = mc.level.getBlockState(pos).getBlock();
-                if (!isInteresting(block)) continue;
-                emitBox(pose, consumer, new AABB(pos));
-                found++;
-            }
+            for (BlockPos pos : module.matches) emitBox(pose, consumer, new AABB(pos));
         } catch (RuntimeException exception) {
             module.enabled = false;
+            module.matches.clear();
             if (active == module) active = null;
             OurClient.LOGGER.error("Disabling Block ESP after render failure", exception);
         }
