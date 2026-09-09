@@ -2,14 +2,17 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.phys.EntityHitResult;
 
 /** Selects a useful weapon from the hotbar for the current combat target. */
 public final class AutoWeaponModule implements ToggleableModule {
     private boolean enabled;
     private int previousSlot = -1;
+    private int activeWeaponSlot = -1;
 
     @Override public String id() { return "auto-weapon"; }
     @Override public boolean enabled() { return enabled; }
@@ -25,14 +28,15 @@ public final class AutoWeaponModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.screen != null) return;
-        if (!(client.crosshairTarget instanceof net.minecraft.world.phys.EntityHitResult hit)) return;
+        if (!(client.crosshairTarget instanceof EntityHitResult hit)) return;
         if (!(hit.getEntity() instanceof LivingEntity target) || !target.isAlive() || target == client.player) return;
 
         int current = client.player.getInventory().getSelectedSlot();
         int best = chooseWeapon(client.player.getInventory().getItems(), target);
-        if (best < 0) return;
+        if (best < 0 || best == current) return;
 
-        if (previousSlot < 0 && current != best) previousSlot = current;
+        if (previousSlot < 0) previousSlot = current;
+        activeWeaponSlot = best;
         client.player.getInventory().setSelectedSlot(best);
     }
 
@@ -56,17 +60,18 @@ public final class AutoWeaponModule implements ToggleableModule {
             }
         }
 
-        // Axes are preferred while a player is actively blocking; otherwise use a sword.
-        if (target instanceof net.minecraft.world.entity.player.Player targetPlayer && targetPlayer.isBlocking() && axe >= 0) return axe;
+        // Match Meteor's useful shield-break behavior: use an axe against a blocking player.
+        if (target instanceof Player targetPlayer && targetPlayer.isBlocking() && axe >= 0) return axe;
         if (sword >= 0) return sword;
         return axe;
     }
 
     private void restore(Minecraft client) {
-        if (client.player != null && previousSlot >= 0 && previousSlot < 9) {
-            int current = client.player.getInventory().getSelectedSlot();
-            if (current == previousSlot || current >= 0) client.player.getInventory().setSelectedSlot(previousSlot);
+        if (client.player != null && previousSlot >= 0 && activeWeaponSlot >= 0
+            && client.player.getInventory().getSelectedSlot() == activeWeaponSlot) {
+            client.player.getInventory().setSelectedSlot(previousSlot);
         }
         previousSlot = -1;
+        activeWeaponSlot = -1;
     }
 }
