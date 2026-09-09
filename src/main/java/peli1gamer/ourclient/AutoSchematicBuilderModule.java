@@ -261,11 +261,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     private void abortBuild(Minecraft client, String message) {
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(message), true);
         setEnabled(false);
-        ClientConfig config = OurClient.config();
-        if (config != null) {
-            config.schematicBuilder = false;
-            config.save(OurClient.configPath(client));
-        }
+        OurClient.syncAndSaveConfigFromModules();
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
@@ -278,60 +274,71 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         if (currentSlot != slot) client.player.getInventory().setSelectedSlot(slot);
         activePlacementSlot = slot;
 
-        double maxRangeSquared = MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE;
-        Vec3 eye = client.player.getEyePosition();
-        for (Direction supportDirection : Direction.values()) {
-            BlockPos support = target.relative(supportDirection);
-            if (!client.level.isInWorldBounds(support)) continue;
-            if (!hasUsableSupport(client, support)) continue;
-            Direction face = supportDirection.getOpposite();
-            Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
-            if (eye.distanceToSqr(hit) > maxRangeSquared) continue;
-            InteractionResult action = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND,
-                    new BlockHitResult(hit, face, support, false));
-            if (action.consumesAction()) {
-                client.player.swing(InteractionHand.MAIN_HAND);
-                return true;
+        try {
+            for (Direction direction : Direction.values()) {
+                BlockPos support = target.relative(direction);
+                if (!client.level.isInWorldBounds(support)) continue;
+                if (!hasUsableSupport(client, support)) continue;
+                Direction face = direction.getOpposite();
+                Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
+                if (client.player.getEyePosition().distanceToSqr(hit) > MAX_PLACEMENT_RANGE * MAX_PLACEMENT_RANGE) continue;
+                BlockHitResult result = new BlockHitResult(hit, face, support, false);
+                InteractionResult interaction = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, result);
+                if (interaction.consumesAction()) {
+                    client.player.swing(InteractionHand.MAIN_HAND);
+                    return true;
+                }
             }
+            return false;
+        } finally {
+            restoreSelectedSlot();
         }
-        return false;
     }
 
-    private int findBlockSlot(LocalPlayer player, Block block) {
-        for (int slot = 0; slot < 9; slot++) {
+    private int findBlockSlot(LocalPlayer player, Block wanted) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == block) return slot;
+            if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() == wanted) return slot;
         }
         return -1;
     }
 
     private void restoreSelectedSlot() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player != null && previousSelectedSlot >= 0 && previousSelectedSlot < 9
-                && activePlacementSlot >= 0 && client.player.getInventory().getSelectedSlot() == activePlacementSlot) {
-            client.player.getInventory().setSelectedSlot(previousSelectedSlot);
+        if (activePlayer == null || previousSelectedSlot < 0 || activePlacementSlot < 0) return;
+        if (activePlayer.getInventory().getSelectedSlot() == activePlacementSlot) {
+            activePlayer.getInventory().setSelectedSlot(previousSelectedSlot);
         }
         previousSelectedSlot = -1;
         activePlacementSlot = -1;
     }
 
-    private void sortBlocks() {
-        if (schematic == null) return;
-        List<Schematic.BlockEntry> sorted = new ArrayList<>(schematic.blocks());
-        sorted.sort(Comparator.comparingInt(Schematic.BlockEntry::y).thenComparingInt(Schematic.BlockEntry::x).thenComparingInt(Schematic.BlockEntry::z));
-        schematic = new Schematic(schematic.name(), List.copyOf(sorted));
-    }
-
     private void resetProgress() {
+        schematic = null;
         origin = null;
         cursor = 0;
         completed = null;
         loaded = false;
-        schematic = null;
         noProgressTicks = 0;
         retryCooldown = 0;
         loadRetryCooldown = 0;
+        previousSelectedSlot = -1;
+        activePlacementSlot = -1;
         activeLevel = null;
         activePlayer = null;
+    }
+
+    private void sortBlocks() {
+        if (schematic == null) return;
+        List<Schematic.BlockEntry> sorted = new ArrayList<>(schematic.blocks());
+        sorted.sort(Comparator.comparingInt(Schematic.BlockEntry::y)
+                .thenComparingInt(Schematic.BlockEntry::z)
+                .thenComparingInt(Schematic.BlockEntry::x));
+        schematic = new Schematic(schematic.name(), List.copyOf(sorted));
+    }
+
+    public void setRequestedFile(String requestedFile) {
+        if (requestedFile == null || requestedFile.isBlank()) return;
+        this.requestedFile = requestedFile;
+        if (enabled) resetProgress();
     }
 }
