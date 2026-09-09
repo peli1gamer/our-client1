@@ -202,8 +202,9 @@ public final class OurClientClickGui extends Screen {
 
     private int settingsHeight() {
         if (settingsId == null) return 120;
-        if (settingsId.equals("aim-assist")) return 190;
-        if (settingsId.equals("auto-schematic-builder")) return 150;
+        // Leave enough vertical space for all setting rows plus the footer.
+        if (settingsId.equals("aim-assist")) return 220;
+        if (settingsId.equals("auto-schematic-builder")) return 180;
         return 130;
     }
 
