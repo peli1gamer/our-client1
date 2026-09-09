@@ -20,8 +20,8 @@ public abstract class Setting<T> {
         this.name = name;
         this.title = title == null || title.isBlank() ? name : title;
         this.description = description == null ? "" : description;
-        this.defaultValue = sanitize(defaultValue);
-        this.value = this.defaultValue;
+        this.defaultValue = defaultValue;
+        this.value = defaultValue;
         this.visible = visible == null ? () -> true : visible;
         this.onChanged = onChanged;
     }
@@ -38,10 +38,11 @@ public abstract class Setting<T> {
         try { sanitized = sanitize(newValue); }
         catch (RuntimeException exception) { return false; }
         if (Objects.equals(value, sanitized)) return false;
+        T previous = value;
         value = sanitized;
         if (onChanged != null) {
             try { onChanged.accept(value); }
-            catch (RuntimeException exception) { value = defaultValue; throw exception; }
+            catch (RuntimeException exception) { value = previous; throw exception; }
         }
         return true;
     }
