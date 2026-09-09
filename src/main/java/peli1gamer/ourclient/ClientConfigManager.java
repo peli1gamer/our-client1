@@ -3,9 +3,9 @@ package peli1gamer.ourclient;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Stream;
 
 /** Named, user-managed configuration profiles. */
 public final class ClientConfigManager {
@@ -21,13 +21,14 @@ public final class ClientConfigManager {
     public List<String> list() {
         try {
             if (!Files.isDirectory(directory)) return List.of();
-            return Files.list(directory)
-                    .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(".json"))
-                    .map(path -> path.getFileName().toString().substring(0, path.getFileName().toString().length() - 5))
-                    .sorted(String.CASE_INSENSITIVE_ORDER)
-                    .limit(MAX_PROFILES)
-                    .toList();
+            try (Stream<Path> files = Files.list(directory)) {
+                return files.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".json"))
+                        .map(path -> path.getFileName().toString().substring(0, path.getFileName().toString().length() - 5))
+                        .sorted(String.CASE_INSENSITIVE_ORDER)
+                        .limit(MAX_PROFILES)
+                        .toList();
+            }
         } catch (IOException | RuntimeException exception) {
             OurClient.LOGGER.warn("Could not list Arson config profiles", exception);
             return List.of();
