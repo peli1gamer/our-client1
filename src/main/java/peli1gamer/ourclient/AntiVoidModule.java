@@ -1,49 +1,58 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockPos;
 
-/** Attempts to recover from an imminent void fall without adding a dependency on Meteor. */
+/** Native void protection: detects empty space below the player before the world floor. */
 public final class AntiVoidModule implements ToggleableModule {
     public enum Mode { JUMP, STOP }
-
     private boolean enabled;
     private Mode mode = Mode.JUMP;
     private boolean triggered;
+    private int scanDepth = 6;
 
     @Override public String id() { return "anti-void"; }
     @Override public boolean enabled() { return enabled; }
-
-    @Override
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-        if (!enabled) triggered = false;
-    }
+    public Mode mode() { return mode; }
+    public void cycleMode() { mode = mode == Mode.JUMP ? Mode.STOP : Mode.JUMP; }
+    public int scanDepth() { return scanDepth; }
+    public void setScanDepth(int depth) { scanDepth = Math.max(2, Math.min(12, depth)); }
+    @Override public void setEnabled(boolean enabled) { this.enabled = enabled; if (!enabled) triggered = false; }
 
     @Override
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.screen != null
-                || !client.player.isAlive() || client.player.isSpectator()) return;
-
-        int minY = client.level.getMinY();
-        double y = client.player.getY();
-
-        // Only intervene in the narrow band immediately below the world's floor.
-        if (y > minY || y < minY - 12) {
+                || !client.player.isAlive() || client.player.isSpectator() || client.player.onGround()) {
             triggered = false;
             return;
         }
 
+        double fallSpeed = client.player.getDeltaMovement().y;
+        if (fallSpeed >= 0.0D || !voidBelow(client)) { triggered = false; return; }
         if (triggered) return;
         triggered = true;
 
-        if (mode == Mode.JUMP && client.player.onGround()) {
-            client.player.jumpFromGround();
-        } else if (mode == Mode.STOP) {
-            var velocity = client.player.getDeltaMovement();
-            client.player.setDeltaMovement(velocity.x, Math.max(0.0D, velocity.y), velocity.z);
+        var velocity = client.player.getDeltaMovement();
+        if (mode == Mode.STOP) {
+            client.player.setDeltaMovement(0.0D, Math.max(0.0D, velocity.y), 0.0D);
+        } else if (client.player.getAbilities().mayBuild) {
+            // Only use jump recovery when the local player can legitimately jump.
+            client.player.setDeltaMovement(velocity.x, 0.42D, velocity.z);
         }
     }
 
-    public Mode mode() { return mode; }
-    public void cycleMode() { mode = mode == Mode.JUMP ? Mode.STOP : Mode.JUMP; }
+    private boolean voidBelow(Minecraft client) {
+        BlockPos base = client.player.blockPosition();
+        int minY = client.level.getMinY();
+        for (int depth = 1; depth <= scanDepth; depth++) {
+            int y = base.getY() - depth;
+            if (y < minY) return true;
+            for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+                BlockState state = client.level.getBlockState(base.offset(dx, -depth, dz));
+                if (!state.isAir() && state.isCollisionShapeFullBlock(client.level, base.offset(dx, -depth, dz))) return false;
+            }
+        }
+        return true;
+    }
 }
