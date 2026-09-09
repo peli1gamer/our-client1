@@ -204,12 +204,17 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         for (Direction supportDirection : Direction.values()) {
             BlockPos support = target.relative(supportDirection);
             if (!client.level.isInWorldBounds(support)) continue;
-            if (!client.level.getBlockState(support).isSolidRender()) continue;
+            if (!hasUsableSupport(client, support)) continue;
             Direction face = supportDirection.getOpposite();
             Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
             if (eye.distanceToSqr(hit) <= maxRangeSquared) return true;
         }
         return false;
+    }
+
+    private boolean hasUsableSupport(Minecraft client, BlockPos support) {
+        if (!client.level.isInWorldBounds(support)) return false;
+        return !client.level.getBlockState(support).getCollisionShape(client.level, support).isEmpty();
     }
 
     private void loadSchematic(Minecraft client) {
@@ -278,7 +283,7 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
         for (Direction supportDirection : Direction.values()) {
             BlockPos support = target.relative(supportDirection);
             if (!client.level.isInWorldBounds(support)) continue;
-            if (!client.level.getBlockState(support).isSolidRender()) continue;
+            if (!hasUsableSupport(client, support)) continue;
             Direction face = supportDirection.getOpposite();
             Vec3 hit = Vec3.atCenterOf(support).add(face.getStepX() * 0.49, face.getStepY() * 0.49, face.getStepZ() * 0.49);
             if (eye.distanceToSqr(hit) > maxRangeSquared) continue;
