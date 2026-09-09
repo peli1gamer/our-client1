@@ -32,7 +32,7 @@ public final class AutoWeaponModule implements ToggleableModule {
         if (!(hit.getEntity() instanceof LivingEntity target) || !target.isAlive() || target == client.player) return;
 
         int current = client.player.getInventory().getSelectedSlot();
-        int best = chooseWeapon(client.player, target);
+        int best = chooseWeapon(client.player.getInventory(), target);
         if (best < 0 || best == current) return;
 
         if (previousSlot < 0) previousSlot = current;
