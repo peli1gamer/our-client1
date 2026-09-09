@@ -344,6 +344,9 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
     public void setRequestedFile(String requestedFile) {
         if (requestedFile == null || requestedFile.isBlank()) return;
         this.requestedFile = requestedFile;
-        if (enabled) resetProgress();
+        if (enabled) {
+            restoreSelectedSlot();
+            resetProgress();
+        }
     }
 }
