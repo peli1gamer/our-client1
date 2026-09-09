@@ -1,8 +1,8 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockPos;
 
 /** Native void protection: detects empty space below the player before the world floor. */
 public final class AntiVoidModule implements ToggleableModule {
@@ -36,8 +36,7 @@ public final class AntiVoidModule implements ToggleableModule {
         var velocity = client.player.getDeltaMovement();
         if (mode == Mode.STOP) {
             client.player.setDeltaMovement(0.0D, Math.max(0.0D, velocity.y), 0.0D);
-        } else if (client.player.getAbilities().mayBuild) {
-            // Only use jump recovery when the local player can legitimately jump.
+        } else {
             client.player.setDeltaMovement(velocity.x, 0.42D, velocity.z);
         }
     }
@@ -49,8 +48,9 @@ public final class AntiVoidModule implements ToggleableModule {
             int y = base.getY() - depth;
             if (y < minY) return true;
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                BlockState state = client.level.getBlockState(base.offset(dx, -depth, dz));
-                if (!state.isAir() && state.isCollisionShapeFullBlock(client.level, base.offset(dx, -depth, dz))) return false;
+                BlockPos pos = base.offset(dx, -depth, dz);
+                BlockState state = client.level.getBlockState(pos);
+                if (!state.isAir() && state.isCollisionShapeFullBlock(client.level, pos)) return false;
             }
         }
         return true;
