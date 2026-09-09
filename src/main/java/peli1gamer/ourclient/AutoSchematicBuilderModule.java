@@ -260,8 +260,13 @@ public final class AutoSchematicBuilderModule implements ToggleableModule {
 
     private void abortBuild(Minecraft client, String message) {
         client.player.displayClientMessage(net.minecraft.network.chat.Component.literal(message), true);
-        setEnabled(false);
-        OurClient.syncAndSaveConfigFromModules();
+        ClientModuleManager manager = OurClient.modules();
+        if (!manager.setEnabled(id(), false)) setEnabled(false);
+        try {
+            OurClient.syncAndSaveConfigFromModules();
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("Could not persist schematic builder abort state", exception);
+        }
     }
 
     private boolean place(Minecraft client, BlockPos target, BlockState wanted) {
