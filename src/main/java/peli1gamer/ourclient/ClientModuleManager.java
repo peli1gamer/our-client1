@@ -96,6 +96,7 @@ public final class ClientModuleManager {
     public boolean setEnabled(String id, boolean enabled) {
         ClientModule module = modules.get(id);
         if (!(module instanceof ToggleableModule toggleable)) return false;
+        if (toggleable.enabled() == enabled) return true;
         try {
             toggleable.setEnabled(enabled);
             return toggleable.enabled() == enabled;
