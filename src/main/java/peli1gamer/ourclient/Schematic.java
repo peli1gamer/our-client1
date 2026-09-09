@@ -82,11 +82,16 @@ public record Schematic(String name, List<BlockEntry> blocks) {
                             || !entry.getValue().getAsJsonPrimitive().isString()) {
                         throw new IllegalArgumentException("Schematic block property must be a string: " + entry.getKey());
                     }
-                    Property<?> property = state.getProperties().stream()
-                            .filter(candidate -> candidate.getName().equals(entry.getKey()))
-                            .findFirst()
-                            .orElseThrow(() -> new IllegalArgumentException(
-                                    "Unknown property for " + id + ": " + entry.getKey()));
+                    Property<?> property = null;
+                    for (Property<?> candidate : state.getProperties()) {
+                        if (candidate.getName().equals(entry.getKey())) {
+                            property = candidate;
+                            break;
+                        }
+                    }
+                    if (property == null) {
+                        throw new IllegalArgumentException("Unknown property for " + id + ": " + entry.getKey());
+                    }
                     state = setProperty(state, property, entry.getValue().getAsString());
                 }
             }
@@ -99,8 +104,11 @@ public record Schematic(String name, List<BlockEntry> blocks) {
     private static BlockState setProperty(BlockState state, Property<?> property, String value) {
         Property rawProperty = property;
         Comparable parsed = (Comparable) rawProperty.getValue(value)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Invalid value for property " + property.getName() + ": " + value));
+                .orElse(null);
+        if (parsed == null) {
+            throw new IllegalArgumentException(
+                    "Invalid value for property " + property.getName() + ": " + value);
+        }
         return state.setValue(rawProperty, parsed);
     }
 
