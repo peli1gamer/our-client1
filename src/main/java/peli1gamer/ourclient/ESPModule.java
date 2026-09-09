@@ -61,11 +61,10 @@ public final class ESPModule implements ToggleableModule {
     private void disableAfterRenderFailure(String name, RuntimeException exception) {
         setEnabled(false);
         OurClient.LOGGER.error("Disabling {} after a render failure", name, exception);
-        ClientConfig config = OurClient.config();
-        if (config != null) {
-            config.esp = false;
-            try { OurClient.syncAndSaveConfigFromModules(); }
-            catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist disabled {} state", name, saveException); }
+        try {
+            OurClient.syncAndSaveConfigFromModules();
+        } catch (RuntimeException saveException) {
+            OurClient.LOGGER.error("Could not persist disabled {} state", name, saveException);
         }
     }
 
