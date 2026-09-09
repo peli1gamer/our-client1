@@ -59,7 +59,8 @@ public final class ESPModule implements ToggleableModule {
     }
 
     private void disableAfterRenderFailure(String name, RuntimeException exception) {
-        setEnabled(false);
+        ClientModuleManager manager = OurClient.modules();
+        if (!manager.setEnabled(id(), false)) setEnabled(false);
         OurClient.LOGGER.error("Disabling {} after a render failure", name, exception);
         try {
             OurClient.syncAndSaveConfigFromModules();
