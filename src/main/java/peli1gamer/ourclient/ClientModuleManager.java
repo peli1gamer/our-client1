@@ -46,6 +46,7 @@ public final class ClientModuleManager {
             register(new FastClimbModule());
             register(new AntiVoidModule());
             register(new NoFallModule());
+            register(new ElytraFlyModule());
             register(new BlockESPModule());
             registerCatalog();
             defaultsRegistered = true;
