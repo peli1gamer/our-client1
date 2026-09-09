@@ -287,7 +287,7 @@ public final class OurClientClickGui extends Screen {
                 selectedIndex = 0; scroll = 0; return true;
             }
             if (key == GLFW.GLFW_KEY_ENTER) { editingSearch = false; return true; }
-            // While typing, navigation and shortcut keys must not operate on the module list.
+            // While typing, navigation and shortcut keys must not operate on module list.
             return true;
         }
         if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) {
@@ -316,7 +316,7 @@ public final class OurClientClickGui extends Screen {
     @Override
     public boolean charTyped(CharacterEvent event) {
         if (!editingSearch) return true;
-        char c = event.codepoint();
+        char c = (char) event.codepoint();
         if (c >= 32 && c <= 126 && search.length() < 40) { search += c; selectedIndex = 0; scroll = 0; }
         return true;
     }
