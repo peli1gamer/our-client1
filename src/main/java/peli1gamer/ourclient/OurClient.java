@@ -34,6 +34,9 @@ public final class OurClient implements ClientModInitializer {
         config = ClientConfig.load(configPath(client));
         MODULES.registerDefaults();
         applyConfig();
+        // Freecam is intentionally disabled on startup; immediately persist that
+        // lifecycle decision so the in-memory and on-disk config cannot disagree.
+        syncAndSaveConfigFromModules();
 
         registerKey("toggle_aim", GLFW.GLFW_KEY_R);
         registerKey("toggle_trigger", GLFW.GLFW_KEY_UNKNOWN);
