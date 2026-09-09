@@ -49,6 +49,15 @@ public final class ClientModuleManager {
             register(new NoFallModule());
             register(new ElytraFlyModule());
             register(new BlockESPModule());
+
+            // Native render equivalents. No Meteor classes or dependency are used.
+            register(new RenderFeatureModule("player-esp", RenderFeatureModule.Feature.PLAYER_ESP));
+            register(new RenderFeatureModule("mob-esp", RenderFeatureModule.Feature.MOB_ESP));
+            register(new RenderFeatureModule("item-esp", RenderFeatureModule.Feature.ITEM_ESP));
+            register(new RenderFeatureModule("storage-esp", RenderFeatureModule.Feature.STORAGE_ESP));
+            register(new RenderFeatureModule("void-esp", RenderFeatureModule.Feature.VOID_ESP));
+            register(new RenderFeatureModule("trail", RenderFeatureModule.Feature.TRAIL));
+
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
@@ -61,7 +70,7 @@ public final class ClientModuleManager {
 
     private void registerCatalog() {
         String[] movement = { "speed", "step", "long-jump", "no-slow", "jesus", "spider", "flight", "safe-walk" };
-        String[] render = { "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators" };
+        String[] render = { "chest-esp", "nametags", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators", "better-tab", "better-tooltips", "block-selection", "blur", "boss-stack", "breadcrumbs", "break-indicators", "camera-tweaks", "chams", "city-esp", "entity-owner", "free-look", "hand-view", "hole-esp", "item-highlight", "item-physics", "light-overlay", "logout-spots", "no-render", "pop-chams", "time-changer", "tunnel-esp", "wall-hack", "weather-changer", "zoom" };
         String[] world = { "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower", "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact" };
         String[] player = { "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop", "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move" };
         String[] utility = { "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter", "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer" };
@@ -84,16 +93,12 @@ public final class ClientModuleManager {
             toggleable.setEnabled(enabled);
             if (toggleable.enabled() == enabled) return true;
             try { toggleable.setEnabled(!enabled); }
-            catch (RuntimeException rollbackException) {
-                OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException);
-            }
+            catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException); }
             return false;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
             try { toggleable.setEnabled(!enabled); }
-            catch (RuntimeException rollbackException) {
-                OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException);
-            }
+            catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException); }
             return false;
         }
     }
@@ -109,15 +114,12 @@ public final class ClientModuleManager {
         for (Map.Entry<String, ClientModule> entry : List.copyOf(modules.entrySet())) {
             String id = entry.getKey();
             ClientModule module = entry.getValue();
-            try {
-                module.onClientTick(client);
-            } catch (RuntimeException exception) {
+            try { module.onClientTick(client); }
+            catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
                 if (module instanceof ToggleableModule) setEnabled(id, false);
                 try { OurClient.syncAndSaveConfigFromModules(); }
-                catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException);
-                }
+                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
             }
         }
     }
