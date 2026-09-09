@@ -47,19 +47,21 @@ public final class ClientConfig {
     }
 
     public void save(Path path) {
-        sanitize();
         Path parent = path.getParent();
         Path temp = null;
         try {
+            sanitize();
             if (parent != null) Files.createDirectories(parent);
             Path tempDirectory = parent != null ? parent : Path.of(".");
             temp = Files.createTempFile(tempDirectory, path.getFileName().toString(), ".tmp");
             Files.writeString(temp, GSON.toJson(this));
             try { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
             catch (java.nio.file.AtomicMoveNotSupportedException ignored) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
             OurClient.LOGGER.warn("Could not save client config to {}", path, exception);
-            if (temp != null) try { Files.deleteIfExists(temp); } catch (IOException ignored) { }
+            if (temp != null) {
+                try { Files.deleteIfExists(temp); } catch (IOException | RuntimeException ignored) { }
+            }
         }
     }
 
