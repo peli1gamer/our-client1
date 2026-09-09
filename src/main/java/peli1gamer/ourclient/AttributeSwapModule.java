@@ -36,7 +36,9 @@ public final class AttributeSwapModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.level == null || mc.screen != null || !mc.player.isAlive()) {
-            if (enabled && mc.screen != null) restore(mc.player);
+            if (enabled && mc.player != null && (mc.level == null || mc.screen != null || !mc.player.isAlive())) {
+                restore(mc.player);
+            }
             return;
         }
 
