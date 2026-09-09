@@ -202,7 +202,6 @@ public final class OurClientClickGui extends Screen {
 
     private int settingsHeight() {
         if (settingsId == null) return 120;
-        // Leave enough vertical space for all setting rows plus the footer.
         if (settingsId.equals("aim-assist")) return 220;
         if (settingsId.equals("auto-schematic-builder")) return 180;
         return 130;
@@ -283,9 +282,6 @@ public final class OurClientClickGui extends Screen {
 
         for (int i = 0; i < modules.size(); i++) {
             int y = listTop + (i - scroll) * rowH;
-            // Only visible rows own pointer input. Without this check, an
-            // off-screen row can overlap the search/header area after scrolling
-            // and steal clicks intended for the GUI controls.
             if (y + 30 < listTop || y >= listBottom) continue;
             if (!inside(mx, my, contentX + 14, y, contentW - 28, 30)) continue;
             selectedIndex = i;
@@ -299,10 +295,6 @@ public final class OurClientClickGui extends Screen {
             }
             return true;
         }
-
-        // Never delegate unhandled clicks to Screen's focus machinery. This GUI
-        // intentionally owns all pointer handling and this avoids the historical
-        // mouseClicked/focus crash path.
         return true;
     }
 
@@ -366,14 +358,29 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
+        if (vertical == 0.0D) return true;
+
         if (settingsId != null) {
-            if (editingSetting != null) adjustSetting(vertical > 0 ? 1 : -1);
+            int w = Math.min(450, Math.max(300, width - 42));
+            int h = settingsHeight();
+            int x = (width - w) / 2;
+            int y = (height - h) / 2;
+            if (editingSetting != null && inside(mx, my, x, y, w, h)) {
+                adjustSetting(vertical > 0 ? 1 : -1);
+            }
             return true;
         }
 
+        int margin = 16;
+        int gap = 12;
+        int sidebar = Math.min(178, Math.max(148, width / 5));
+        int contentX = margin + sidebar + gap;
+        int contentW = Math.max(220, width - contentX - margin);
+        int listTop = margin + 47 + 40;
+        int listBottom = height - margin - 14;
+        if (!inside(mx, my, contentX, listTop, contentW, Math.max(1, listBottom - listTop))) return true;
+
         List<ClientModule> modules = modulesForCategory();
-        int listTop = 16 + 47 + 40;
-        int listBottom = height - 16 - 14;
         int visibleRows = Math.max(1, (listBottom - listTop) / 34);
         int maxScroll = Math.max(0, modules.size() - visibleRows);
         if (maxScroll > 0) {
@@ -418,38 +425,50 @@ public final class OurClientClickGui extends Screen {
             return true;
         }
 
-        if (editingSearch && key == GLFW.GLFW_KEY_BACKSPACE) {
-            if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
-            selectedIndex = 0;
-            scroll = 0;
+        if (editingSearch) {
+            if (key == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!search.isEmpty()) search = search.substring(0, search.length() - 1);
+                selectedIndex = 0;
+                scroll = 0;
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ENTER) {
+                editingSearch = false;
+                return true;
+            }
+        }
+
+        if (key == GLFW.GLFW_KEY_UP || key == GLFW.GLFW_KEY_DOWN) {
+            List<ClientModule> modules = modulesForCategory();
+            if (!modules.isEmpty()) {
+                selectedIndex = Math.max(0, Math.min(modules.size() - 1,
+                    selectedIndex + (key == GLFW.GLFW_KEY_DOWN ? 1 : -1)));
+                int visibleRows = Math.max(1, (height - 16 - (16 + 47 + 40) - 14) / 34);
+                if (selectedIndex < scroll) scroll = selectedIndex;
+                if (selectedIndex >= scroll + visibleRows) scroll = selectedIndex - visibleRows + 1;
+            }
             return true;
         }
 
-        if (!editingSearch && settingsId == null) {
+        if (key == GLFW.GLFW_KEY_ENTER) {
             List<ClientModule> modules = modulesForCategory();
-            if (key == GLFW.GLFW_KEY_DOWN) {
-                if (!modules.isEmpty()) selectedIndex = Math.min(modules.size() - 1, selectedIndex + 1);
-                ensureSelectedVisible();
-                return true;
+            if (!modules.isEmpty()) {
+                ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
+                if (module instanceof ToggleableModule && !(module instanceof CatalogModule)) toggle(module.id());
             }
-            if (key == GLFW.GLFW_KEY_UP) {
-                if (!modules.isEmpty()) selectedIndex = Math.max(0, selectedIndex - 1);
-                ensureSelectedVisible();
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) {
-                ClientModule module = modules.get(selectedIndex);
-                if (module instanceof ToggleableModule) toggle(module.id());
-                return true;
-            }
-            if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) {
-                ClientModule module = modules.get(selectedIndex);
+            return true;
+        }
+
+        if (key == GLFW.GLFW_KEY_O) {
+            List<ClientModule> modules = modulesForCategory();
+            if (!modules.isEmpty()) {
+                ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
                 if (!(module instanceof CatalogModule)) {
                     settingsId = module.id();
                     editingSetting = null;
                 }
-                return true;
             }
+            return true;
         }
 
         return true;
@@ -457,11 +476,10 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (!editingSearch || settingsId != null) return true;
-        int codepoint = event.codepoint();
-        if (Character.isLetterOrDigit(codepoint) || Character.isSpaceChar(codepoint) || "-_".indexOf(codepoint) >= 0) {
-            String character = new String(Character.toChars(codepoint));
-            if (search.length() < 32) search += character;
+        if (!editingSearch) return true;
+        char c = event.codepoint();
+        if (c >= 32 && c <= 126 && search.length() < 40) {
+            search += c;
             selectedIndex = 0;
             scroll = 0;
         }
@@ -470,22 +488,10 @@ public final class OurClientClickGui extends Screen {
 
     @Override
     public void onClose() {
-        super.onClose();
-        editingSearch = false;
         settingsId = null;
         editingSetting = null;
-        OurClient.LOGGER.debug("Closed Arson Client GUI");
-    }
-
-    private void ensureSelectedVisible() {
-        List<ClientModule> modules = modulesForCategory();
-        int listTop = 16 + 47 + 40;
-        int listBottom = height - 16 - 14;
-        int visibleRows = Math.max(1, (listBottom - listTop) / 34);
-        int maxScroll = Math.max(0, modules.size() - visibleRows);
-        if (selectedIndex < scroll) scroll = selectedIndex;
-        if (selectedIndex >= scroll + visibleRows) scroll = selectedIndex - visibleRows + 1;
-        scroll = Math.max(0, Math.min(maxScroll, scroll));
+        editingSearch = false;
+        super.onClose();
     }
 
     private void clampScroll() {
@@ -497,18 +503,17 @@ public final class OurClientClickGui extends Screen {
         scroll = Math.max(0, Math.min(scroll, maxScroll));
     }
 
-    private static boolean inside(double x, double y, double left, double top, double w, double h) {
-        return x >= left && x < left + w && y >= top && y < top + h;
+    private static boolean inside(double mx, double my, double x, double y, double w, double h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
     private static String pretty(String id) {
-        String[] words = id.split("-");
-        StringBuilder result = new StringBuilder();
-        for (String word : words) {
-            if (word.isEmpty()) continue;
-            if (result.length() > 0) result.append(' ');
-            result.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        StringBuilder out = new StringBuilder();
+        for (String part : id.split("-")) {
+            if (part.isEmpty()) continue;
+            if (out.length() > 0) out.append(' ');
+            out.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
-        return result.toString();
+        return out.toString();
     }
 }
