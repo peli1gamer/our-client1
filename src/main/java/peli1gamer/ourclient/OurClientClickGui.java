@@ -291,8 +291,8 @@ public final class OurClientClickGui extends Screen {
             selectedIndex = i;
             ClientModule module = modules.get(i);
             if (module instanceof CatalogModule) return true;
-            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule t) {
-                toggle(module.id(), t);
+            if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule) {
+                toggle(module.id());
             } else if (button == GLFW.GLFW_MOUSE_BUTTON_2) {
                 settingsId = module.id();
                 editingSetting = null;
@@ -327,9 +327,9 @@ public final class OurClientClickGui extends Screen {
         if (module instanceof CatalogModule) return true;
 
         int row = y + 54;
-        if (module instanceof ToggleableModule t) {
+        if (module instanceof ToggleableModule) {
             if (inside(mx, my, x, row, w, 30)) {
-                toggle(settingsId, t);
+                toggle(settingsId);
                 return true;
             }
             row += 38;
@@ -351,20 +351,16 @@ public final class OurClientClickGui extends Screen {
         return true;
     }
 
-    private void toggle(String id, ToggleableModule t) {
+    private void toggle(String id) {
+        ClientModuleManager manager = OurClient.modules();
+        if (!manager.toggle(id)) {
+            OurClient.LOGGER.warn("ClickGUI could not toggle module '{}'", id);
+            return;
+        }
         try {
-            t.setEnabled(!t.enabled());
             OurClient.syncAndSaveConfigFromModules();
         } catch (RuntimeException e) {
-            OurClient.LOGGER.error("Failed to toggle '{}'", id, e);
-            try { t.setEnabled(false); } catch (RuntimeException ignored) {}
-            // A failed enable may have left the in-memory module disabled while
-            // the config still says enabled. Always synchronize after the
-            // recovery attempt so the persisted state reflects reality.
-            try { OurClient.syncAndSaveConfigFromModules(); }
-            catch (RuntimeException saveException) {
-                OurClient.LOGGER.error("Could not persist recovered '{}' state", id, saveException);
-            }
+            OurClient.LOGGER.error("Could not persist ClickGUI toggle for '{}'", id, e);
         }
     }
 
@@ -429,63 +425,67 @@ public final class OurClientClickGui extends Screen {
             return true;
         }
 
-        List<ClientModule> modules = modulesForCategory();
-        if (key == GLFW.GLFW_KEY_LEFT) {
-            category = (category + CATEGORY_NAMES.length - 1) % CATEGORY_NAMES.length;
-            selectedIndex = 0;
-            scroll = 0;
-            return true;
-        }
-        if (key == GLFW.GLFW_KEY_RIGHT) {
-            category = (category + 1) % CATEGORY_NAMES.length;
-            selectedIndex = 0;
-            scroll = 0;
-            return true;
-        }
-        if (key == GLFW.GLFW_KEY_UP && !modules.isEmpty()) {
-            selectedIndex = (selectedIndex + modules.size() - 1) % modules.size();
-            ensureSelectedVisible(modules.size());
-            return true;
-        }
-        if (key == GLFW.GLFW_KEY_DOWN && !modules.isEmpty()) {
-            selectedIndex = (selectedIndex + 1) % modules.size();
-            ensureSelectedVisible(modules.size());
-            return true;
-        }
-        if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) {
-            ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
-            if (module instanceof ToggleableModule t && !(module instanceof CatalogModule)) toggle(module.id(), t);
-            return true;
-        }
-        if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) {
-            ClientModule module = modules.get(Math.min(selectedIndex, modules.size() - 1));
-            if (!(module instanceof CatalogModule)) {
-                settingsId = module.id();
-                editingSetting = null;
+        if (!editingSearch && settingsId == null) {
+            List<ClientModule> modules = modulesForCategory();
+            if (key == GLFW.GLFW_KEY_DOWN) {
+                if (!modules.isEmpty()) selectedIndex = Math.min(modules.size() - 1, selectedIndex + 1);
+                ensureSelectedVisible();
+                return true;
             }
-            return true;
+            if (key == GLFW.GLFW_KEY_UP) {
+                if (!modules.isEmpty()) selectedIndex = Math.max(0, selectedIndex - 1);
+                ensureSelectedVisible();
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_ENTER && !modules.isEmpty()) {
+                ClientModule module = modules.get(selectedIndex);
+                if (module instanceof ToggleableModule) toggle(module.id());
+                return true;
+            }
+            if (key == GLFW.GLFW_KEY_O && !modules.isEmpty()) {
+                ClientModule module = modules.get(selectedIndex);
+                if (!(module instanceof CatalogModule)) {
+                    settingsId = module.id();
+                    editingSetting = null;
+                }
+                return true;
+            }
         }
-        return true;
-    }
 
-    private void ensureSelectedVisible(int size) {
-        int visibleRows = Math.max(1, (height - 16 - (16 + 47 + 40) - 14) / 34);
-        int maxScroll = Math.max(0, size - visibleRows);
-        if (selectedIndex < scroll) scroll = selectedIndex;
-        else if (selectedIndex >= scroll + visibleRows) scroll = selectedIndex - visibleRows + 1;
-        scroll = Math.max(0, Math.min(scroll, maxScroll));
+        return true;
     }
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        if (!editingSearch) return true;
-        if (event.codepoint() > 0 && event.codepoint() != 127) {
-            search += Character.toChars(event.codepoint());
-            if (search.length() > 64) search = search.substring(0, 64);
+        if (!editingSearch || settingsId != null) return true;
+        int codepoint = event.codepoint();
+        if (Character.isLetterOrDigit(codepoint) || Character.isSpaceChar(codepoint) || "-_".indexOf(codepoint) >= 0) {
+            String character = new String(Character.toChars(codepoint));
+            if (search.length() < 32) search += character;
             selectedIndex = 0;
             scroll = 0;
         }
         return true;
+    }
+
+    @Override
+    public void onClose() {
+        super.onClose();
+        editingSearch = false;
+        settingsId = null;
+        editingSetting = null;
+        OurClient.LOGGER.debug("Closed Arson Client GUI");
+    }
+
+    private void ensureSelectedVisible() {
+        List<ClientModule> modules = modulesForCategory();
+        int listTop = 16 + 47 + 40;
+        int listBottom = height - 16 - 14;
+        int visibleRows = Math.max(1, (listBottom - listTop) / 34);
+        int maxScroll = Math.max(0, modules.size() - visibleRows);
+        if (selectedIndex < scroll) scroll = selectedIndex;
+        if (selectedIndex >= scroll + visibleRows) scroll = selectedIndex - visibleRows + 1;
+        scroll = Math.max(0, Math.min(maxScroll, scroll));
     }
 
     private void clampScroll() {
@@ -497,8 +497,8 @@ public final class OurClientClickGui extends Screen {
         scroll = Math.max(0, Math.min(scroll, maxScroll));
     }
 
-    private static boolean inside(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
+    private static boolean inside(double x, double y, double left, double top, double w, double h) {
+        return x >= left && x < left + w && y >= top && y < top + h;
     }
 
     private static String pretty(String id) {
