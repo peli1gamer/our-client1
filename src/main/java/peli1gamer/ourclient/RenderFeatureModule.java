@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -72,6 +73,7 @@ public final class RenderFeatureModule implements ToggleableModule {
             }
         }
     }
+
     private void refreshStorage(Minecraft mc) {
         storageMatches.clear();
         BlockPos center = mc.player.blockPosition();
@@ -79,14 +81,17 @@ public final class RenderFeatureModule implements ToggleableModule {
                 center.offset(-STORAGE_RADIUS, -STORAGE_RADIUS, -STORAGE_RADIUS),
                 center.offset(STORAGE_RADIUS, STORAGE_RADIUS, STORAGE_RADIUS))) {
             if (storageMatches.size() >= STORAGE_RESULT_LIMIT) break;
-            var state = mc.level.getBlockState(pos);
-            if (state.is(net.minecraft.world.level.block.Blocks.CHEST)
-                    || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)
-                    || state.is(net.minecraft.world.level.block.Blocks.BARREL)) {
-                storageMatches.add(pos.immutable());
-            }
+            if (isStorageBlock(mc, pos)) storageMatches.add(pos.immutable());
         }
     }
+
+    private static boolean isStorageBlock(Minecraft mc, BlockPos pos) {
+        String path = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).getPath();
+        return path.equals("chest") || path.equals("trapped_chest") || path.equals("ender_chest")
+                || path.equals("barrel") || path.contains("_chest")
+                || path.endsWith("_shulker_box") || path.equals("shulker_box");
+    }
+
     private static void installHook() {
         if (hookInstalled) return;
         hookInstalled = true;
@@ -101,10 +106,12 @@ public final class RenderFeatureModule implements ToggleableModule {
             }
         });
     }
+
     private void render(WorldRenderContext context) {
         if (context == null || context.matrices() == null || context.consumers() == null) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null) return;
+        if (mc.player == null || mc.level == null || mc.getCameraEntity() == null
+                || mc.getCameraEntity().level() != mc.level) return;
         MultiBufferSource consumers = context.consumers();
         VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
         PoseStack.Pose pose = context.matrices().last();
@@ -113,61 +120,110 @@ public final class RenderFeatureModule implements ToggleableModule {
             case PLAYER_ESP -> renderPlayers(mc, pose, buffer, camera);
             case MOB_ESP -> renderMobs(mc, pose, buffer, camera);
             case ITEM_ESP -> renderItems(mc, pose, buffer, camera);
-            case STORAGE_ESP -> renderStorage(pose, buffer, camera);
-            case VOID_ESP -> renderVoid(mc, pose, buffer, camera);
-            case TRAIL -> renderTrail(pose, buffer, camera);
+            case STORAGE_ESP -> renderStorage(mc, pose, buffer, camera);
+            case VOID_ESP -> renderVoid(mc, pose, buffer);
+            case TRAIL -> renderTrail(pose, buffer);
         }
     }
+
     private static void renderPlayers(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
         for (Player entity : mc.level.players()) {
             if (entity == mc.player || !entity.isAlive() || outOfRange(entity, camera)) continue;
-            emitBox(pose, buffer, entity.getBoundingBox(), camera);
+            emitBox(pose, buffer, entity.getBoundingBox(), 0.3f, 0.75f, 1.0f);
         }
     }
+
     private static void renderMobs(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
         for (Entity entity : mc.level.entitiesForRendering()) {
-            if (entity == mc.player || entity instanceof Player || !entity.isAlive() || !(entity instanceof net.minecraft.world.entity.Mob) || outOfRange(entity, camera)) continue;
-            emitBox(pose, buffer, entity.getBoundingBox(), camera);
+            if (entity == mc.player || entity instanceof Player || !entity.isAlive()
+                    || !(entity instanceof net.minecraft.world.entity.Mob) || outOfRange(entity, camera)) continue;
+            emitBox(pose, buffer, entity.getBoundingBox(), 1.0f, 0.25f, 0.25f);
         }
     }
+
     private static void renderItems(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!(entity instanceof ItemEntity item) || !item.isAlive() || outOfRange(item, camera)) continue;
-            emitBox(pose, buffer, item.getBoundingBox().inflate(0.05D), camera);
+            // Use the actual ItemEntity hitbox. Do not inflate it or offset it from the entity.
+            emitBox(pose, buffer, item.getBoundingBox(), 1.0f, 0.85f, 0.15f);
         }
     }
-    private void renderStorage(PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
-        for (BlockPos pos : storageMatches) emitBox(pose, buffer, new AABB(pos), camera);
+
+    private void renderStorage(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
+        for (BlockPos pos : storageMatches) {
+            if (camera.distanceToSqr(Vec3.atCenterOf(pos)) > (MAX_RANGE + 8.0D) * (MAX_RANGE + 8.0D)) continue;
+            String path = BuiltInRegistries.BLOCK.getKey(mc.level.getBlockState(pos).getBlock()).getPath();
+            float[] color = storageColor(path);
+            emitBox(pose, buffer, new AABB(pos), color[0], color[1], color[2]);
+        }
     }
-    private static void renderVoid(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
+
+    private static float[] storageColor(String path) {
+        if (path.equals("ender_chest")) return new float[]{0.65f, 0.2f, 0.95f};
+        if (path.equals("trapped_chest")) return new float[]{1.0f, 0.18f, 0.12f};
+        if (path.contains("copper") && path.contains("oxidized")) return new float[]{0.2f, 0.7f, 0.62f};
+        if (path.contains("copper") && path.contains("weathered")) return new float[]{0.2f, 0.62f, 0.55f};
+        if (path.contains("copper") && path.contains("exposed")) return new float[]{0.55f, 0.68f, 0.58f};
+        if (path.contains("copper")) return new float[]{0.85f, 0.45f, 0.2f};
+        if (path.contains("shulker")) return shulkerColor(path);
+        if (path.equals("barrel")) return new float[]{0.58f, 0.34f, 0.16f};
+        return new float[]{0.72f, 0.45f, 0.2f};
+    }
+
+    private static float[] shulkerColor(String path) {
+        if (path.contains("white")) return new float[]{0.95f, 0.95f, 0.95f};
+        if (path.contains("orange")) return new float[]{1.0f, 0.45f, 0.08f};
+        if (path.contains("magenta")) return new float[]{0.9f, 0.2f, 0.75f};
+        if (path.contains("light_blue")) return new float[]{0.35f, 0.7f, 1.0f};
+        if (path.contains("yellow")) return new float[]{1.0f, 0.85f, 0.1f};
+        if (path.contains("lime")) return new float[]{0.45f, 0.9f, 0.2f};
+        if (path.contains("pink")) return new float[]{1.0f, 0.5f, 0.7f};
+        if (path.contains("gray")) return new float[]{0.35f, 0.35f, 0.4f};
+        if (path.contains("light_gray")) return new float[]{0.7f, 0.7f, 0.7f};
+        if (path.contains("cyan")) return new float[]{0.1f, 0.8f, 0.8f};
+        if (path.contains("purple")) return new float[]{0.65f, 0.25f, 0.8f};
+        if (path.contains("blue")) return new float[]{0.2f, 0.4f, 1.0f};
+        if (path.contains("brown")) return new float[]{0.5f, 0.3f, 0.15f};
+        if (path.contains("green")) return new float[]{0.2f, 0.7f, 0.25f};
+        if (path.contains("red")) return new float[]{0.9f, 0.15f, 0.15f};
+        if (path.contains("black")) return new float[]{0.12f, 0.12f, 0.12f};
+        return new float[]{0.72f, 0.45f, 0.2f};
+    }
+
+    private static void renderVoid(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer) {
         int y = mc.level.getMinY();
         double x = mc.player.getX(), z = mc.player.getZ();
-        emitBox(pose, buffer, new AABB(x - 1.5D, y, z - 1.5D, x + 1.5D, y + 0.1D, z + 1.5D), camera);
+        emitBox(pose, buffer, new AABB(x - 1.5D, y, z - 1.5D, x + 1.5D, y + 0.1D, z + 1.5D), 1.0f, 0.15f, 0.15f);
     }
-    private void renderTrail(PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
+
+    private void renderTrail(PoseStack.Pose pose, VertexConsumer buffer) {
         Vec3 previous = null;
         for (Vec3 point : trail) {
             if (previous != null) line(pose, buffer,
-                    (float) (previous.x - camera.x), (float) (previous.y - camera.y), (float) (previous.z - camera.z),
-                    (float) (point.x - camera.x), (float) (point.y - camera.y), (float) (point.z - camera.z));
+                    (float) previous.x, (float) previous.y, (float) previous.z,
+                    (float) point.x, (float) point.y, (float) point.z,
+                    1.0f, 0.55f, 0.05f);
             previous = point;
         }
     }
+
     private static boolean outOfRange(Entity entity, Vec3 camera) {
         return camera.distanceToSqr(entity.position()) > MAX_RANGE * MAX_RANGE;
     }
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, Vec3 camera) {
-        float minX=(float)(b.minX-camera.x), minY=(float)(b.minY-camera.y), minZ=(float)(b.minZ-camera.z);
-        float maxX=(float)(b.maxX-camera.x), maxY=(float)(b.maxY-camera.y), maxZ=(float)(b.maxZ-camera.z);
-        line(pose,consumer,minX,minY,minZ,maxX,minY,minZ); line(pose,consumer,maxX,minY,minZ,maxX,minY,maxZ);
-        line(pose,consumer,maxX,minY,maxZ,minX,minY,maxZ); line(pose,consumer,minX,minY,maxZ,minX,minY,minZ);
-        line(pose,consumer,minX,maxY,minZ,maxX,maxY,minZ); line(pose,consumer,maxX,maxY,minZ,maxX,maxY,maxZ);
-        line(pose,consumer,maxX,maxY,maxZ,minX,maxY,maxZ); line(pose,consumer,minX,maxY,maxZ,minX,maxY,minZ);
-        line(pose,consumer,minX,minY,minZ,minX,maxY,minZ); line(pose,consumer,maxX,minY,minZ,maxX,maxY,minZ);
-        line(pose,consumer,maxX,minY,maxZ,maxX,maxY,maxZ); line(pose,consumer,minX,minY,maxZ,minX,maxY,maxZ);
+
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB b, float r, float g, float blue) {
+        float minX=(float)b.minX, minY=(float)b.minY, minZ=(float)b.minZ;
+        float maxX=(float)b.maxX, maxY=(float)b.maxY, maxZ=(float)b.maxZ;
+        line(pose,consumer,minX,minY,minZ,maxX,minY,minZ,r,g,blue); line(pose,consumer,maxX,minY,minZ,maxX,minY,maxZ,r,g,blue);
+        line(pose,consumer,maxX,minY,maxZ,minX,minY,maxZ,r,g,blue); line(pose,consumer,minX,minY,maxZ,minX,minY,minZ,r,g,blue);
+        line(pose,consumer,minX,maxY,minZ,maxX,maxY,minZ,r,g,blue); line(pose,consumer,maxX,maxY,minZ,maxX,maxY,maxZ,r,g,blue);
+        line(pose,consumer,maxX,maxY,maxZ,minX,maxY,maxZ,r,g,blue); line(pose,consumer,minX,maxY,maxZ,minX,maxY,minZ,r,g,blue);
+        line(pose,consumer,minX,minY,minZ,minX,maxY,minZ,r,g,blue); line(pose,consumer,maxX,minY,minZ,maxX,maxY,minZ,r,g,blue);
+        line(pose,consumer,maxX,minY,maxZ,maxX,maxY,maxZ,r,g,blue); line(pose,consumer,minX,minY,maxZ,minX,maxY,maxZ,r,g,blue);
     }
-    private static void line(PoseStack.Pose pose, VertexConsumer consumer, float x1,float y1,float z1,float x2,float y2,float z2) {
-        consumer.addVertex(pose,x1,y1,z1).setColor(1.0f,1.0f,1.0f,0.9f).setLineWidth(1.5f).setNormal(pose,0.0f,1.0f,0.0f);
-        consumer.addVertex(pose,x2,y2,z2).setColor(1.0f,1.0f,1.0f,0.9f).setLineWidth(1.5f).setNormal(pose,0.0f,1.0f,0.0f);
+
+    private static void line(PoseStack.Pose pose, VertexConsumer consumer, float x1,float y1,float z1,float x2,float y2,float z2,float r,float g,float blue) {
+        consumer.addVertex(pose,x1,y1,z1).setColor(r,g,blue,0.9f).setLineWidth(1.5f).setNormal(pose,0.0f,1.0f,0.0f);
+        consumer.addVertex(pose,x2,y2,z2).setColor(r,g,blue,0.9f).setLineWidth(1.5f).setNormal(pose,0.0f,1.0f,0.0f);
     }
 }
