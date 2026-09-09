@@ -43,6 +43,9 @@ public final class ClientModuleManager {
             register(new FullbrightModule());
             register(new HighJumpModule());
             register(new BunnyHopModule());
+            register(new FastClimbModule());
+            register(new AntiVoidModule());
+            register(new BlockESPModule());
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
