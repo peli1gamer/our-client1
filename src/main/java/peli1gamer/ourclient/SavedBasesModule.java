@@ -40,8 +40,9 @@ public final class SavedBasesModule implements ToggleableModule {
             loadRetryCooldown--;
             return;
         }
-        ClientConfig config = OurClient.config();
-        if (config != null) enabled = config.savedBases;
+        // Startup configuration is applied by ClientModuleManager/OurClient.
+        // Do not re-read or mutate the config here; the module manager is the
+        // single owner of runtime module state.
         if (load(client)) loaded = true;
         else loadRetryCooldown = LOAD_RETRY_DELAY_TICKS;
     }
