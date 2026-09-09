@@ -15,6 +15,7 @@ public final class ClientConfig {
     public boolean triggerBot;
     public boolean crystalMacro;
     public boolean attributeSwap;
+    public boolean autoWeapon;
     public boolean tracers;
     public boolean esp;
     public boolean freecam;
@@ -26,9 +27,15 @@ public final class ClientConfig {
     public boolean autoJump;
     public boolean airJump;
     public boolean sprint;
+    public boolean autoSprint;
     public boolean fullbright;
     public boolean highJump;
     public boolean bunnyHop;
+    public boolean fastClimb;
+    public boolean antiVoid;
+    public boolean noFall;
+    public boolean elytraFly;
+    public boolean blockEsp;
     public float aimSmoothing = 0.18f;
     public float aimRange = 12.0f;
     public int schematicPlacementsPerTick = 1;
@@ -47,8 +54,7 @@ public final class ClientConfig {
     }
 
     public void save(Path path) {
-        Path parent = path.getParent();
-        Path temp = null;
+        Path parent = path.getParent(); Path temp = null;
         try {
             sanitize();
             if (parent != null) Files.createDirectories(parent);
@@ -59,9 +65,7 @@ public final class ClientConfig {
             catch (java.nio.file.AtomicMoveNotSupportedException ignored) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
         } catch (IOException | RuntimeException exception) {
             OurClient.LOGGER.warn("Could not save client config to {}", path, exception);
-            if (temp != null) {
-                try { Files.deleteIfExists(temp); } catch (IOException | RuntimeException ignored) { }
-            }
+            if (temp != null) try { Files.deleteIfExists(temp); } catch (IOException | RuntimeException ignored) { }
         }
     }
 
