@@ -23,7 +23,6 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
-            // Existing implemented modules.
             register(new AimAssistModule());
             register(new TriggerBotModule());
             register(new CrystalMacroModule());
@@ -35,8 +34,6 @@ public final class ClientModuleManager {
             register(new AutoSchematicBuilderModule());
             register(new SavedBasesModule());
             register(new ScaffoldModule());
-
-            // Small, stable movement/render batch.
             register(new AutoWalkModule());
             register(new AutoJumpModule());
             register(new AirJumpModule());
@@ -44,9 +41,6 @@ public final class ClientModuleManager {
             register(new FullbrightModule());
             register(new HighJumpModule());
             register(new BunnyHopModule());
-
-            // Expanded catalog remains isolated so unfinished features cannot
-            // destabilize the already implemented modules.
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
@@ -58,26 +52,11 @@ public final class ClientModuleManager {
     }
 
     private void registerCatalog() {
-        String[] movement = {
-            "auto-sprint", "speed", "step", "long-jump",
-            "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "safe-walk"
-        };
-        String[] render = {
-            "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp",
-            "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators"
-        };
-        String[] world = {
-            "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower",
-            "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact"
-        };
-        String[] player = {
-            "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop",
-            "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move"
-        };
-        String[] utility = {
-            "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter",
-            "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer"
-        };
+        String[] movement = { "auto-sprint", "speed", "step", "long-jump", "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "safe-walk" };
+        String[] render = { "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators" };
+        String[] world = { "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower", "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact" };
+        String[] player = { "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop", "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move" };
+        String[] utility = { "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter", "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer" };
         addCatalog(movement, CatalogModule.Category.MOVEMENT);
         addCatalog(render, CatalogModule.Category.RENDER);
         addCatalog(world, CatalogModule.Category.WORLD);
@@ -89,10 +68,6 @@ public final class ClientModuleManager {
         for (String id : ids) register(new CatalogModule(id, category));
     }
 
-    /**
-     * Applies a module state through one guarded path so GUI, keybinds and
-     * future integrations do not each need their own failure recovery.
-     */
     public boolean setEnabled(String id, boolean enabled) {
         ClientModule module = modules.get(id);
         if (!(module instanceof ToggleableModule toggleable)) return false;
@@ -100,9 +75,6 @@ public final class ClientModuleManager {
         try {
             toggleable.setEnabled(enabled);
             if (toggleable.enabled() == enabled) return true;
-
-            // A module must not be left in a half-transitioned state when its
-            // implementation returns without applying the requested state.
             try { toggleable.setEnabled(!enabled); }
             catch (RuntimeException rollbackException) {
                 OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException);
@@ -110,9 +82,8 @@ public final class ClientModuleManager {
             return false;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
-            try {
-                toggleable.setEnabled(!enabled);
-            } catch (RuntimeException rollbackException) {
+            try { toggleable.setEnabled(!enabled); }
+            catch (RuntimeException rollbackException) {
                 OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException);
             }
             return false;
@@ -134,9 +105,7 @@ public final class ClientModuleManager {
                 module.onClientTick(client);
             } catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
-                if (module instanceof ToggleableModule) {
-                    setEnabled(id, false);
-                }
+                if (module instanceof ToggleableModule) setEnabled(id, false);
                 try { OurClient.syncAndSaveConfigFromModules(); }
                 catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
             }
