@@ -83,7 +83,13 @@ public final class OurClient implements ClientModInitializer {
 
     private static void handleKeybinds(Minecraft client) {
         if (client.screen != null) { discardPendingKeybinds(); return; }
-        while (KEYBINDS.get("open_clickgui").consumeClick()) client.setScreen(new OurClientClickGui());
+        while (KEYBINDS.get("open_clickgui").consumeClick()) {
+            client.setScreen(new OurClientClickGui());
+            // The GUI-opening key owns this input event. Do not also process
+            // gameplay module keybinds that were queued in the same tick.
+            discardPendingKeybinds();
+            return;
+        }
         while (KEYBINDS.get("toggle_aim").consumeClick()) toggle("aim-assist");
         while (KEYBINDS.get("toggle_trigger").consumeClick()) toggle("trigger-bot");
         while (KEYBINDS.get("toggle_crystal").consumeClick()) toggle("crystal-macro");
