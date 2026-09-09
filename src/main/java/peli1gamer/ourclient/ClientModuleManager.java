@@ -27,6 +27,7 @@ public final class ClientModuleManager {
             register(new TriggerBotModule());
             register(new CrystalMacroModule());
             register(new AttributeSwapModule());
+            register(new AutoWeaponModule());
             register(new TracersModule());
             register(new ESPModule());
             register(new XrayModule());
@@ -38,6 +39,7 @@ public final class ClientModuleManager {
             register(new AutoJumpModule());
             register(new AirJumpModule());
             register(new SprintModule());
+            register(new AutoSprintModule());
             register(new FullbrightModule());
             register(new HighJumpModule());
             register(new BunnyHopModule());
@@ -52,7 +54,7 @@ public final class ClientModuleManager {
     }
 
     private void registerCatalog() {
-        String[] movement = { "auto-sprint", "speed", "step", "long-jump", "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "safe-walk" };
+        String[] movement = { "speed", "step", "long-jump", "no-slow", "no-fall", "jesus", "spider", "fast-climb", "flight", "safe-walk" };
         String[] render = { "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators" };
         String[] world = { "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower", "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact" };
         String[] player = { "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop", "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move" };
@@ -107,7 +109,7 @@ public final class ClientModuleManager {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
                 if (module instanceof ToggleableModule) setEnabled(id, false);
                 try { OurClient.syncAndSaveConfigFromModules(); }
-                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
+                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", saveException); }
             }
         }
     }
