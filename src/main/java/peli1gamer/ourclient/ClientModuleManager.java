@@ -4,7 +4,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import net.minecraft.client.Minecraft;
 
 public final class ClientModuleManager {
@@ -23,34 +22,10 @@ public final class ClientModuleManager {
         if (defaultsRegistered) return;
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
-            register(new AimAssistModule());
-            register(new TriggerBotModule());
-            register(new CrystalMacroModule());
-            register(new AnchorMacroModule());
-            register(new AttributeSwapModule());
-            register(new AutoWeaponModule());
-            register(new TracersModule());
-            register(new ESPModule());
-            register(new XrayModule());
-            register(new FreecamModule());
-            register(new AutoSchematicBuilderModule());
-            register(new SavedBasesModule());
-            register(new ScaffoldModule());
-            register(new AutoWalkModule());
-            register(new AutoJumpModule());
-            register(new AirJumpModule());
-            register(new SprintModule());
-            register(new AutoSprintModule());
-            register(new FullbrightModule());
-            register(new HighJumpModule());
-            register(new BunnyHopModule());
-            register(new FastClimbModule());
-            register(new AntiVoidModule());
-            register(new NoFallModule());
-            register(new ElytraFlyModule());
-            register(new BlockESPModule());
+            register(new AimAssistModule()); register(new TriggerBotModule()); register(new CrystalMacroModule()); register(new AnchorMacroModule()); register(new AttributeSwapModule()); register(new AutoWeaponModule());
+            register(new TracersModule()); register(new ESPModule()); register(new XrayModule()); register(new FreecamModule()); register(new AutoSchematicBuilderModule()); register(new SavedBasesModule()); register(new ScaffoldModule());
+            register(new AutoWalkModule()); register(new AutoJumpModule()); register(new AirJumpModule()); register(new SprintModule()); register(new AutoSprintModule()); register(new FullbrightModule()); register(new HighJumpModule()); register(new BunnyHopModule()); register(new FastClimbModule()); register(new AntiVoidModule()); register(new NoFallModule()); register(new ElytraFlyModule()); register(new BlockESPModule());
 
-            // Core native render modules.
             register(new RenderFeatureModule("player-esp", RenderFeatureModule.Feature.PLAYER_ESP));
             register(new RenderFeatureModule("mob-esp", RenderFeatureModule.Feature.MOB_ESP));
             register(new RenderFeatureModule("item-esp", RenderFeatureModule.Feature.ITEM_ESP));
@@ -58,26 +33,25 @@ public final class ClientModuleManager {
             register(new RenderFeatureModule("void-esp", RenderFeatureModule.Feature.VOID_ESP));
             register(new RenderFeatureModule("trail", RenderFeatureModule.Feature.TRAIL));
 
-            // Glazed-inspired ESP family, reimplemented natively for Arson.
-            register(new GlazedESPModule("glazed-players", GlazedESPModule.Mode.PLAYERS));
-            register(new GlazedESPModule("glazed-mobs", GlazedESPModule.Mode.MOBS));
-            register(new GlazedESPModule("glazed-items", GlazedESPModule.Mode.ITEMS));
-            register(new GlazedESPModule("villager-esp", GlazedESPModule.Mode.VILLAGERS));
-            register(new GlazedESPModule("pillager-esp", GlazedESPModule.Mode.PILLAGERS));
-            register(new GlazedESPModule("wandering-esp", GlazedESPModule.Mode.WANDERING_TRADERS));
-            register(new GlazedESPModule("amethyst-esp", GlazedESPModule.Mode.AMETHYST));
-            register(new GlazedESPModule("beehive-esp", GlazedESPModule.Mode.BEEHIVES));
-            register(new GlazedESPModule("deepslate-esp", GlazedESPModule.Mode.DEEPSLATE));
-            register(new GlazedESPModule("dripstone-esp", GlazedESPModule.Mode.DRIPSTONE));
-            register(new GlazedESPModule("kelp-esp", GlazedESPModule.Mode.KELP));
-            register(new GlazedESPModule("vine-esp", GlazedESPModule.Mode.VINES));
-            register(new GlazedESPModule("light-esp", GlazedESPModule.Mode.LIGHT_BLOCKS));
+            // Extended native ESP coverage.
+            register(new ExtendedESPModule("players-esp", ExtendedESPModule.Mode.PLAYERS));
+            register(new ExtendedESPModule("mobs-esp", ExtendedESPModule.Mode.MOBS));
+            register(new ExtendedESPModule("items-esp", ExtendedESPModule.Mode.ITEMS));
+            register(new ExtendedESPModule("villager-esp", ExtendedESPModule.Mode.VILLAGERS));
+            register(new ExtendedESPModule("pillager-esp", ExtendedESPModule.Mode.PILLAGERS));
+            register(new ExtendedESPModule("wandering-esp", ExtendedESPModule.Mode.WANDERING_TRADERS));
+            register(new ExtendedESPModule("amethyst-esp", ExtendedESPModule.Mode.AMETHYST));
+            register(new ExtendedESPModule("beehive-esp", ExtendedESPModule.Mode.BEEHIVES));
+            register(new ExtendedESPModule("deepslate-esp", ExtendedESPModule.Mode.DEEPSLATE));
+            register(new ExtendedESPModule("dripstone-esp", ExtendedESPModule.Mode.DRIPSTONE));
+            register(new ExtendedESPModule("kelp-esp", ExtendedESPModule.Mode.KELP));
+            register(new ExtendedESPModule("vine-esp", ExtendedESPModule.Mode.VINES));
+            register(new ExtendedESPModule("light-esp", ExtendedESPModule.Mode.LIGHT_BLOCKS));
 
             registerCatalog();
             defaultsRegistered = true;
         } catch (RuntimeException exception) {
-            modules.clear();
-            modules.putAll(previous);
+            modules.clear(); modules.putAll(previous);
             OurClient.LOGGER.error("Could not register all default client modules", exception);
             throw exception;
         }
@@ -89,16 +63,9 @@ public final class ClientModuleManager {
         String[] world = { "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower", "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact" };
         String[] player = { "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop", "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move" };
         String[] utility = { "waypoints", "coordinates", "compass", "radar", "fps-counter", "cps-counter", "keystrokes", "ping-display", "server-info", "potion-effects", "armor-hud", "item-counter", "timer" };
-        addCatalog(movement, CatalogModule.Category.MOVEMENT);
-        addCatalog(render, CatalogModule.Category.RENDER);
-        addCatalog(world, CatalogModule.Category.WORLD);
-        addCatalog(player, CatalogModule.Category.PLAYER);
-        addCatalog(utility, CatalogModule.Category.UTILITY);
+        addCatalog(movement, CatalogModule.Category.MOVEMENT); addCatalog(render, CatalogModule.Category.RENDER); addCatalog(world, CatalogModule.Category.WORLD); addCatalog(player, CatalogModule.Category.PLAYER); addCatalog(utility, CatalogModule.Category.UTILITY);
     }
-
-    private void addCatalog(String[] ids, CatalogModule.Category category) {
-        for (String id : ids) register(new CatalogModule(id, category));
-    }
+    private void addCatalog(String[] ids, CatalogModule.Category category) { for (String id : ids) register(new CatalogModule(id, category)); }
 
     public boolean setEnabled(String id, boolean enabled) {
         ClientModule module = modules.get(id);
@@ -107,38 +74,28 @@ public final class ClientModuleManager {
         try {
             toggleable.setEnabled(enabled);
             if (toggleable.enabled() == enabled) return true;
-            try { toggleable.setEnabled(!enabled); }
-            catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException); }
+            try { toggleable.setEnabled(!enabled); } catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back client module '{}' after incomplete state transition", id, rollbackException); }
             return false;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
-            try { toggleable.setEnabled(!enabled); }
-            catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException); }
+            try { toggleable.setEnabled(!enabled); } catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException); }
             return false;
         }
     }
-
-    public boolean toggle(String id) {
-        ClientModule module = modules.get(id);
-        if (!(module instanceof ToggleableModule toggleable)) return false;
-        return setEnabled(id, !toggleable.enabled());
-    }
+    public boolean toggle(String id) { ClientModule module = modules.get(id); return module instanceof ToggleableModule toggleable && setEnabled(id, !toggleable.enabled()); }
 
     public void tick(Minecraft client) {
         if (client == null) return;
         for (Map.Entry<String, ClientModule> entry : List.copyOf(modules.entrySet())) {
-            String id = entry.getKey();
-            ClientModule module = entry.getValue();
+            String id = entry.getKey(); ClientModule module = entry.getValue();
             try { module.onClientTick(client); }
             catch (RuntimeException exception) {
                 OurClient.LOGGER.error("Client module '{}' failed during tick", id, exception);
                 if (module instanceof ToggleableModule) setEnabled(id, false);
-                try { OurClient.syncAndSaveConfigFromModules(); }
-                catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
+                try { OurClient.syncAndSaveConfigFromModules(); } catch (RuntimeException saveException) { OurClient.LOGGER.error("Could not persist failed client module '{}' state", id, saveException); }
             }
         }
     }
-
     public ClientModule get(String id) { return modules.get(id); }
     public Collection<ClientModule> all() { return List.copyOf(modules.values()); }
     public int size() { return modules.size(); }
