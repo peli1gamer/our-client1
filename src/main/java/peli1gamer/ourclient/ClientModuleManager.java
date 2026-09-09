@@ -23,7 +23,7 @@ public final class ClientModuleManager {
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
             register(new AimAssistModule()); register(new TriggerBotModule()); register(new CrystalMacroModule()); register(new AnchorMacroModule()); register(new AttributeSwapModule()); register(new AutoWeaponModule());
-            register(new HoverTotemModule());
+            register(new HoverTotemModule()); register(new TargetTrackerModule());
             register(new TracersModule()); register(new ESPModule()); register(new XrayModule()); register(new FreecamModule()); register(new AutoSchematicBuilderModule()); register(new SavedBasesModule()); register(new ScaffoldModule());
             register(new AutoWalkModule()); register(new AutoJumpModule()); register(new AirJumpModule()); register(new SprintModule()); register(new AutoSprintModule()); register(new FullbrightModule()); register(new HighJumpModule()); register(new BunnyHopModule()); register(new FastClimbModule()); register(new AntiVoidModule()); register(new NoFallModule()); register(new ElytraFlyModule()); register(new BlockESPModule());
 
@@ -34,20 +34,10 @@ public final class ClientModuleManager {
             register(new RenderFeatureModule("void-esp", RenderFeatureModule.Feature.VOID_ESP));
             register(new RenderFeatureModule("trail", RenderFeatureModule.Feature.TRAIL));
 
-            // Extended native ESP coverage.
-            register(new ExtendedESPModule("players-esp", ExtendedESPModule.Mode.PLAYERS));
-            register(new ExtendedESPModule("mobs-esp", ExtendedESPModule.Mode.MOBS));
-            register(new ExtendedESPModule("items-esp", ExtendedESPModule.Mode.ITEMS));
-            register(new ExtendedESPModule("villager-esp", ExtendedESPModule.Mode.VILLAGERS));
-            register(new ExtendedESPModule("pillager-esp", ExtendedESPModule.Mode.PILLAGERS));
-            register(new ExtendedESPModule("wandering-esp", ExtendedESPModule.Mode.WANDERING_TRADERS));
-            register(new ExtendedESPModule("amethyst-esp", ExtendedESPModule.Mode.AMETHYST));
-            register(new ExtendedESPModule("beehive-esp", ExtendedESPModule.Mode.BEEHIVES));
-            register(new ExtendedESPModule("deepslate-esp", ExtendedESPModule.Mode.DEEPSLATE));
-            register(new ExtendedESPModule("dripstone-esp", ExtendedESPModule.Mode.DRIPSTONE));
-            register(new ExtendedESPModule("kelp-esp", ExtendedESPModule.Mode.KELP));
-            register(new ExtendedESPModule("vine-esp", ExtendedESPModule.Mode.VINES));
-            register(new ExtendedESPModule("light-esp", ExtendedESPModule.Mode.LIGHT_BLOCKS));
+            register(new ExtendedESPModule("players-esp", ExtendedESPModule.Mode.PLAYERS)); register(new ExtendedESPModule("mobs-esp", ExtendedESPModule.Mode.MOBS)); register(new ExtendedESPModule("items-esp", ExtendedESPModule.Mode.ITEMS));
+            register(new ExtendedESPModule("villager-esp", ExtendedESPModule.Mode.VILLAGERS)); register(new ExtendedESPModule("pillager-esp", ExtendedESPModule.Mode.PILLAGERS)); register(new ExtendedESPModule("wandering-esp", ExtendedESPModule.Mode.WANDERING_TRADERS));
+            register(new ExtendedESPModule("amethyst-esp", ExtendedESPModule.Mode.AMETHYST)); register(new ExtendedESPModule("beehive-esp", ExtendedESPModule.Mode.BEEHIVES)); register(new ExtendedESPModule("deepslate-esp", ExtendedESPModule.Mode.DEEPSLATE));
+            register(new ExtendedESPModule("dripstone-esp", ExtendedESPModule.Mode.DRIPSTONE)); register(new ExtendedESPModule("kelp-esp", ExtendedESPModule.Mode.KELP)); register(new ExtendedESPModule("vine-esp", ExtendedESPModule.Mode.VINES)); register(new ExtendedESPModule("light-esp", ExtendedESPModule.Mode.LIGHT_BLOCKS));
 
             registerCatalog();
             defaultsRegistered = true;
