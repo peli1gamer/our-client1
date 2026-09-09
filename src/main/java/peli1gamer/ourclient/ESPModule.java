@@ -6,12 +6,11 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** Stable player-box ESP using Fabric's world extraction/buffer path. */
+/** Stable player-box ESP using a native Arson see-through render pipeline. */
 public final class ESPModule implements ToggleableModule {
     private static final double MAX_RANGE = 96.0D;
     private static boolean renderHookInstalled;
@@ -44,7 +43,7 @@ public final class ESPModule implements ToggleableModule {
         try {
             double maxRangeSquared = MAX_RANGE * MAX_RANGE;
             MultiBufferSource consumers = context.consumers();
-            VertexConsumer buffer = consumers.getBuffer(RenderTypes.lines());
+            VertexConsumer buffer = consumers.getBuffer(ArsonRenderTypes.SEE_THROUGH_LINES);
             PoseStack.Pose pose = context.matrices().last();
             Vec3 camera = mc.getCameraEntity().position();
 
