@@ -32,12 +32,8 @@ public final class ElytraFlyModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         if (!enabled) { restorePitch(); this.enabled = false; return; }
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.level == null || client.player.isSpectator()
-                || !client.player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA)) {
-            this.enabled = false;
-            return;
-        }
+        // Configuration is applied during client startup before a world/player exists.
+        // Keep the requested state until a player is available instead of silently losing it.
         this.enabled = true;
     }
 
@@ -45,9 +41,10 @@ public final class ElytraFlyModule implements ToggleableModule {
     public void onClientTick(Minecraft client) {
         if (!enabled) return;
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || !player.isAlive()) { setEnabled(false); return; }
+        if (player == null || client.level == null) return;
+        if (!player.isAlive() || player.isSpectator()) { setEnabled(false); return; }
         if (!player.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA)) { setEnabled(false); return; }
-        if (client.screen != null || player.isSpectator()) return;
+        if (client.screen != null) return;
 
         if (!player.isFallFlying()) {
             if (!player.onGround() && player.getDeltaMovement().y < 0.0D) player.startFallFlying();
