@@ -118,7 +118,7 @@ public final class OurClientClickGui extends Screen {
     private static int categoryFor(ClientModule module) {
         if (module instanceof CatalogModule catalog) return catalog.category().ordinal();
         return switch (module.id()) {
-            case "aim-assist", "trigger-bot", "crystal-macro", "attribute-swap", "auto-weapon" -> 0;
+            case "aim-assist", "trigger-bot", "crystal-macro", "anchor-macro", "attribute-swap", "auto-weapon" -> 0;
             case "auto-walk", "auto-jump", "air-jump", "sprint", "auto-sprint", "freecam", "high-jump", "bunny-hop", "fast-climb", "anti-void", "no-fall", "elytra-fly" -> 1;
             case "tracers", "esp", "xray", "fullbright", "block-esp" -> 2;
             case "auto-schematic-builder", "saved-bases", "scaffold" -> 3;
@@ -135,7 +135,7 @@ public final class OurClientClickGui extends Screen {
         int searchY = margin + 47;
         if (inside(mx, my, contentX + 14, searchY, contentW - 28, 30)) { editingSearch = true; selectedIndex = 0; scroll = 0; return true; }
         List<ClientModule> modules = modulesForCategory(); int listTop = searchY + 40, listBottom = height - margin - 14, rowH = 34;
-        int visibleRows = Math.max(1, (listBottom - listTop) / rowH), maxScroll = Math.max(0, modules.size() - visibleRows); scroll = Math.max(0, Math.min(scroll, maxScroll));
+        int visibleRows = Math.max(1, (listBottom - listTop) / rowH); int maxScroll = Math.max(0, modules.size() - visibleRows); scroll = Math.max(0, Math.min(scroll, maxScroll));
         for (int i = 0; i < modules.size(); i++) { int y = listTop + (i - scroll) * rowH; if (y + 30 < listTop || y >= listBottom || !inside(mx, my, contentX + 14, y, contentW - 28, 30)) continue;
             selectedIndex = i; ClientModule module = modules.get(i); if (module instanceof CatalogModule) return true;
             if (button == GLFW.GLFW_MOUSE_BUTTON_1 && module instanceof ToggleableModule) toggle(module.id()); else if (button == GLFW.GLFW_MOUSE_BUTTON_2) { settingsId = module.id(); editingSetting = null; }
