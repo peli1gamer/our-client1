@@ -18,6 +18,8 @@ public final class ClientConfig {
     public boolean attributeSwap;
     public boolean autoWeapon;
     public boolean hoverTotem;
+    public boolean targetTracker;
+    public int targetTrackerTimeoutTicks = 100;
     public boolean hoverTotemHotbarTotem = true;
     public int hoverTotemHotbarSlot = 1;
     public boolean hoverTotemAutoSwitch;
@@ -82,5 +84,6 @@ public final class ClientConfig {
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
         hoverTotemHotbarSlot = Math.max(1, Math.min(9, hoverTotemHotbarSlot));
+        targetTrackerTimeoutTicks = Math.max(10, Math.min(600, targetTrackerTimeoutTicks));
     }
 }
