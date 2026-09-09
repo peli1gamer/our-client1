@@ -45,6 +45,7 @@ public final class ClientModuleManager {
             register(new BunnyHopModule());
             register(new FastClimbModule());
             register(new AntiVoidModule());
+            register(new NoFallModule());
             register(new BlockESPModule());
             registerCatalog();
             defaultsRegistered = true;
@@ -57,7 +58,7 @@ public final class ClientModuleManager {
     }
 
     private void registerCatalog() {
-        String[] movement = { "speed", "step", "long-jump", "no-slow", "no-fall", "jesus", "spider", "flight", "safe-walk" };
+        String[] movement = { "speed", "step", "long-jump", "no-slow", "jesus", "spider", "flight", "safe-walk" };
         String[] render = { "player-esp", "mob-esp", "item-esp", "chest-esp", "nametags", "storage-esp", "search-block", "overlay", "hitboxes", "trajectories", "damage-indicators" };
         String[] world = { "nuker", "fast-mine", "auto-mine", "auto-bridge", "auto-build", "tower", "bed-breaker", "chest-aura", "auto-farm", "auto-fish", "auto-tool", "liquid-interact" };
         String[] player = { "auto-eat", "auto-armor", "inventory-manager", "chest-stealer", "auto-drop", "auto-respawn", "auto-reconnect", "fast-use", "no-swing", "anti-afk", "inventory-move" };
