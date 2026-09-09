@@ -31,8 +31,6 @@ public final class SavedBasesModule implements ToggleableModule {
     @Override
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        ClientConfig config = OurClient.config();
-        if (config != null) config.savedBases = enabled;
     }
 
     @Override
