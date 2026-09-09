@@ -23,7 +23,6 @@ public final class XrayModule implements ToggleableModule {
     private static final int SCAN_INTERVAL_TICKS = 20;
     private static final int MAX_RENDERED_BLOCKS = 512;
     private static boolean hookInstalled;
-    private static XrayModule active;
     private boolean enabled;
     private int scanTimer;
     private ClientLevel trackedLevel;
@@ -38,12 +37,10 @@ public final class XrayModule implements ToggleableModule {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (enabled) {
-            active = this;
             scanTimer = 0;
             trackedLevel = null;
             matches.clear();
-        } else if (active == this) {
-            active = null;
+        } else {
             matches.clear();
             scanTimer = 0;
             trackedLevel = null;
@@ -87,14 +84,10 @@ public final class XrayModule implements ToggleableModule {
             matches.clear();
             setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a scan failure", exception);
-            ClientConfig config = OurClient.config();
-            if (config != null) {
-                config.xray = false;
-                try {
-                    OurClient.syncAndSaveConfigFromModules();
-                } catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Failed to persist Xray scan-failure state", saveException);
-                }
+            try {
+                OurClient.syncAndSaveConfigFromModules();
+            } catch (RuntimeException saveException) {
+                OurClient.LOGGER.error("Failed to persist Xray scan-failure state", saveException);
             }
         }
     }
@@ -115,8 +108,7 @@ public final class XrayModule implements ToggleableModule {
         if (hookInstalled) return;
         hookInstalled = true;
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            XrayModule module = active;
-            if (module != null) module.render(context);
+            if (OurClient.modules().get("xray") instanceof XrayModule module) module.render(context);
         });
     }
 
@@ -143,14 +135,10 @@ public final class XrayModule implements ToggleableModule {
         } catch (RuntimeException exception) {
             setEnabled(false);
             OurClient.LOGGER.error("Disabling Xray after a render failure", exception);
-            ClientConfig config = OurClient.config();
-            if (config != null) {
-                config.xray = false;
-                try {
-                    OurClient.syncAndSaveConfigFromModules();
-                } catch (RuntimeException saveException) {
-                    OurClient.LOGGER.error("Failed to persist Xray render-failure state", saveException);
-                }
+            try {
+                OurClient.syncAndSaveConfigFromModules();
+            } catch (RuntimeException saveException) {
+                OurClient.LOGGER.error("Failed to persist Xray render-failure state", saveException);
             }
         }
     }
