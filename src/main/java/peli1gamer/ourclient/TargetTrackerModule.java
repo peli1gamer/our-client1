@@ -1,6 +1,5 @@
 package peli1gamer.ourclient;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -8,7 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 
-/** Tracks the last living entity recorded by Minecraft as having damaged the player. */
+/** Tracks the last valid entity recorded as having damaged the local player. */
 public final class TargetTrackerModule implements ToggleableModule, ConfigurableModule {
     private static final int DEFAULT_TIMEOUT_TICKS = 100;
     private static boolean hudHookInstalled;
@@ -39,18 +38,24 @@ public final class TargetTrackerModule implements ToggleableModule, Configurable
         }
 
         timeoutTicks = Math.max(1, Math.min(600, timeoutTicks));
-        LivingEntity attacker = client.player.getLastHurtByMob();
-        if (isValidAttacker(client, attacker)) {
-            if (target != attacker) {
-                target = attacker;
-                targetAge = 0;
-            } else {
-                targetAge = 0;
-            }
-        } else if (target != null) {
-            targetAge++;
-            if (targetAge >= timeoutTicks || !isValidTarget(client, target)) clearTarget();
+        if (target == null) return;
+
+        if (!isValidTarget(client, target)) {
+            clearTarget();
+            return;
         }
+
+        targetAge++;
+        if (targetAge >= timeoutTicks) clearTarget();
+    }
+
+    /** Called by the damage-source mixin when the local player is actually hurt. */
+    public void recordDamage(Entity attacker) {
+        if (!enabled || attacker == null) return;
+        Minecraft client = Minecraft.getInstance();
+        if (!isValidAttacker(client, attacker)) return;
+        target = (LivingEntity) attacker;
+        targetAge = 0;
     }
 
     @Override
@@ -72,13 +77,17 @@ public final class TargetTrackerModule implements ToggleableModule, Configurable
         targetAge = 0;
     }
 
-    private static boolean isValidAttacker(Minecraft client, LivingEntity entity) {
-        return entity != null && entity != client.player && entity.level() == client.level
-                && entity.isAlive() && !entity.isSpectator();
+    private static boolean isValidAttacker(Minecraft client, Entity entity) {
+        return client.player != null && client.level != null
+                && entity instanceof LivingEntity living
+                && entity != client.player
+                && entity.level() == client.level
+                && living.isAlive()
+                && !living.isSpectator();
     }
 
     private boolean isValidTarget(Minecraft client, Entity entity) {
-        return entity instanceof LivingEntity living && isValidAttacker(client, living);
+        return isValidAttacker(client, entity);
     }
 
     private void installHudHook() {
@@ -94,11 +103,8 @@ public final class TargetTrackerModule implements ToggleableModule, Configurable
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || target == null) return;
         try {
-            String name = target.getDisplayName().getString();
-            String text = "Target: " + name;
-            int x = 8;
-            int y = 8;
-            graphics.drawString(client.font, Component.literal(text), x, y, 0xFFFF8A00, true);
+            String text = "Target: " + target.getDisplayName().getString();
+            graphics.drawString(client.font, Component.literal(text), 8, 8, 0xFFFF8A00, true);
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Target tracker HUD render failed", exception);
         }
