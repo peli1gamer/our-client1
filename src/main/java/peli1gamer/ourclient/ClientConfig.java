@@ -17,6 +17,11 @@ public final class ClientConfig {
     public boolean anchorMacro;
     public boolean attributeSwap;
     public boolean autoWeapon;
+    public boolean hoverTotem;
+    public boolean hoverTotemHotbarTotem = true;
+    public int hoverTotemHotbarSlot = 1;
+    public boolean hoverTotemAutoSwitch;
+    public boolean hoverTotemAutoInvOpen;
     public boolean tracers;
     public boolean esp;
     public boolean freecam;
@@ -76,5 +81,6 @@ public final class ClientConfig {
         aimSmoothing = Math.max(0.01f, Math.min(1.0f, aimSmoothing));
         aimRange = Math.max(1.0f, Math.min(64.0f, aimRange));
         schematicPlacementsPerTick = Math.max(1, Math.min(20, schematicPlacementsPerTick));
+        hoverTotemHotbarSlot = Math.max(1, Math.min(9, hoverTotemHotbarSlot));
     }
 }

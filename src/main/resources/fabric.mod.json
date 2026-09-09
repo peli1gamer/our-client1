@@ -11,6 +11,9 @@
       "peli1gamer.ourclient.OurClient"
     ]
   },
+  "mixins": [
+    "our-client1.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.18.1",
     "fabric-api": "0.141.6+1.21.11",

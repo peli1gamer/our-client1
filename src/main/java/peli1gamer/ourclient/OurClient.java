@@ -64,7 +64,13 @@ public final class OurClient implements ClientModInitializer {
     private static void toggle(String id) { if (MODULES.toggle(id)) syncAndSaveConfigFromModules(); }
 
     private static void applyConfig() {
-        setEnabled("aim-assist", config.aimAssist); setEnabled("trigger-bot", config.triggerBot); setEnabled("crystal-macro", config.crystalMacro); setEnabled("anchor-macro", config.anchorMacro); setEnabled("attribute-swap", config.attributeSwap); setEnabled("auto-weapon", config.autoWeapon);
+        setEnabled("aim-assist", config.aimAssist); setEnabled("trigger-bot", config.triggerBot); setEnabled("crystal-macro", config.crystalMacro); setEnabled("anchor-macro", config.anchorMacro); setEnabled("attribute-swap", config.attributeSwap); setEnabled("auto-weapon", config.autoWeapon); setEnabled("hover-totem", config.hoverTotem);
+        if (MODULES.get("hover-totem") instanceof HoverTotemModule hoverTotem) {
+            hoverTotem.setHotbarTotem(config.hoverTotemHotbarTotem);
+            hoverTotem.setHotbarSlot(config.hoverTotemHotbarSlot);
+            hoverTotem.setAutoSwitchToTotem(config.hoverTotemAutoSwitch);
+            hoverTotem.setAutoInvOpen(config.hoverTotemAutoInvOpen);
+        }
         setEnabled("tracers", config.tracers); setEnabled("esp", config.esp); setEnabled("xray", config.xray); setEnabled("freecam", false); setEnabled("auto-schematic-builder", config.schematicBuilder); setEnabled("saved-bases", config.savedBases); setEnabled("scaffold", config.scaffold);
         setEnabled("auto-walk", config.autoWalk); setEnabled("auto-jump", config.autoJump); setEnabled("air-jump", config.airJump); setEnabled("sprint", config.sprint); setEnabled("auto-sprint", config.autoSprint); setEnabled("fullbright", config.fullbright); setEnabled("high-jump", config.highJump); setEnabled("bunny-hop", config.bunnyHop);
         setEnabled("fast-climb", config.fastClimb); setEnabled("anti-void", config.antiVoid); setEnabled("no-fall", config.noFall); setEnabled("elytra-fly", config.elytraFly); setEnabled("block-esp", config.blockEsp);
@@ -72,7 +78,14 @@ public final class OurClient implements ClientModInitializer {
     private static void setEnabled(String id, boolean enabled) { MODULES.setEnabled(id, enabled); }
     static void syncAndSaveConfigFromModules() { if (config == null) return; syncConfigFromModules(); config.save(configPath(Minecraft.getInstance())); }
     private static void syncConfigFromModules() {
-        config.aimAssist = enabled("aim-assist"); config.triggerBot = enabled("trigger-bot"); config.crystalMacro = enabled("crystal-macro"); config.anchorMacro = enabled("anchor-macro"); config.attributeSwap = enabled("attribute-swap"); config.autoWeapon = enabled("auto-weapon"); config.tracers = enabled("tracers"); config.esp = enabled("esp"); config.xray = enabled("xray");
+        config.aimAssist = enabled("aim-assist"); config.triggerBot = enabled("trigger-bot"); config.crystalMacro = enabled("crystal-macro"); config.anchorMacro = enabled("anchor-macro"); config.attributeSwap = enabled("attribute-swap"); config.autoWeapon = enabled("auto-weapon"); config.hoverTotem = enabled("hover-totem");
+        if (MODULES.get("hover-totem") instanceof HoverTotemModule hoverTotem) {
+            config.hoverTotemHotbarTotem = hoverTotem.hotbarTotem();
+            config.hoverTotemHotbarSlot = hoverTotem.hotbarSlot();
+            config.hoverTotemAutoSwitch = hoverTotem.autoSwitchToTotem();
+            config.hoverTotemAutoInvOpen = hoverTotem.autoInvOpen();
+        }
+        config.tracers = enabled("tracers"); config.esp = enabled("esp"); config.xray = enabled("xray");
         config.freecam = enabled("freecam"); config.schematicBuilder = enabled("auto-schematic-builder"); config.savedBases = enabled("saved-bases"); config.scaffold = enabled("scaffold"); config.autoWalk = enabled("auto-walk"); config.autoJump = enabled("auto-jump"); config.airJump = enabled("air-jump"); config.sprint = enabled("sprint"); config.autoSprint = enabled("auto-sprint"); config.fullbright = enabled("fullbright"); config.highJump = enabled("high-jump"); config.bunnyHop = enabled("bunny-hop");
         config.fastClimb = enabled("fast-climb"); config.antiVoid = enabled("anti-void"); config.noFall = enabled("no-fall"); config.elytraFly = enabled("elytra-fly"); config.blockEsp = enabled("block-esp");
     }
