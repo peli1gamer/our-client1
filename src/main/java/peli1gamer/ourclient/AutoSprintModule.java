@@ -23,7 +23,7 @@ public final class AutoSprintModule implements ToggleableModule {
         boolean canSprint = client.player.isAlive()
             && !client.player.isSpectator()
             && !client.player.isPassenger()
-            && client.player.zza > 0.0F
+            && client.options.keyUp.isDown()
             && !client.player.isUsingItem();
 
         if (canSprint) client.player.setSprinting(true);
