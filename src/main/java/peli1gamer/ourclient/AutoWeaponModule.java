@@ -1,11 +1,11 @@
 package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.phys.EntityHitResult;
 
 /** Selects a useful weapon from the hotbar for the current combat target. */
@@ -28,11 +28,11 @@ public final class AutoWeaponModule implements ToggleableModule {
     @Override
     public void onClientTick(Minecraft client) {
         if (!enabled || client.player == null || client.level == null || client.screen != null) return;
-        if (!(client.crosshairTarget instanceof EntityHitResult hit)) return;
+        if (!(client.hitResult instanceof EntityHitResult hit)) return;
         if (!(hit.getEntity() instanceof LivingEntity target) || !target.isAlive() || target == client.player) return;
 
         int current = client.player.getInventory().getSelectedSlot();
-        int best = chooseWeapon(client.player.getInventory().getItems(), target);
+        int best = chooseWeapon(client.player, target);
         if (best < 0 || best == current) return;
 
         if (previousSlot < 0) previousSlot = current;
@@ -40,17 +40,17 @@ public final class AutoWeaponModule implements ToggleableModule {
         client.player.getInventory().setSelectedSlot(best);
     }
 
-    private int chooseWeapon(java.util.List<ItemStack> hotbar, LivingEntity target) {
+    private int chooseWeapon(net.minecraft.world.entity.player.Inventory inventory, LivingEntity target) {
         int sword = -1;
         int axe = -1;
         int bestDurabilitySword = -1;
         int bestDurabilityAxe = -1;
 
-        for (int i = 0; i < 9 && i < hotbar.size(); i++) {
-            ItemStack stack = hotbar.get(i);
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) continue;
             int durability = stack.isDamageableItem() ? stack.getMaxDamage() - stack.getDamageValue() : Integer.MAX_VALUE;
-            if (stack.getItem() instanceof SwordItem && durability > bestDurabilitySword) {
+            if (stack.is(ItemTags.SWORDS) && durability > bestDurabilitySword) {
                 sword = i;
                 bestDurabilitySword = durability;
             }
