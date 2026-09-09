@@ -2,7 +2,7 @@ package peli1gamer.ourclient;
 
 import net.minecraft.client.Minecraft;
 
-/** Native fall-damage guard: prevents normal fall distance from accumulating while active. */
+/** Native fall-distance guard. */
 public final class NoFallModule implements ToggleableModule {
     private boolean enabled;
 
@@ -15,8 +15,8 @@ public final class NoFallModule implements ToggleableModule {
         if (!enabled || client.player == null || client.level == null || client.screen != null
                 || !client.player.isAlive()) return;
 
-        if (client.player.getFallDistance() > 0.0F) {
-            client.player.resetFallDistance();
-        }
+        // resetFallDistance() is available in the current mappings; avoid relying on
+        // a getter whose mapped name differs between Minecraft versions.
+        client.player.resetFallDistance();
     }
 }
