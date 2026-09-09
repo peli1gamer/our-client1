@@ -23,6 +23,7 @@ public final class ClientModuleManager {
         Map<String, ClientModule> previous = new LinkedHashMap<>(modules);
         try {
             register(new AimAssistModule()); register(new TriggerBotModule()); register(new CrystalMacroModule()); register(new AnchorMacroModule()); register(new AttributeSwapModule()); register(new AutoWeaponModule());
+            register(new HoverTotemModule());
             register(new TracersModule()); register(new ESPModule()); register(new XrayModule()); register(new FreecamModule()); register(new AutoSchematicBuilderModule()); register(new SavedBasesModule()); register(new ScaffoldModule());
             register(new AutoWalkModule()); register(new AutoJumpModule()); register(new AirJumpModule()); register(new SprintModule()); register(new AutoSprintModule()); register(new FullbrightModule()); register(new HighJumpModule()); register(new BunnyHopModule()); register(new FastClimbModule()); register(new AntiVoidModule()); register(new NoFallModule()); register(new ElytraFlyModule()); register(new BlockESPModule());
 
@@ -78,7 +79,7 @@ public final class ClientModuleManager {
             return false;
         } catch (RuntimeException exception) {
             OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
-            try { toggleable.setEnabled(!enabled); } catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, rollbackException); }
+            try { toggleable.setEnabled(!enabled); } catch (RuntimeException rollbackException) { OurClient.LOGGER.error("Could not roll back failed client module '{}' state", id, rollbackException); }
             return false;
         }
     }
