@@ -26,6 +26,7 @@ public final class ClientModuleManager {
             register(new AimAssistModule());
             register(new TriggerBotModule());
             register(new CrystalMacroModule());
+            register(new AnchorMacroModule());
             register(new AttributeSwapModule());
             register(new AutoWeaponModule());
             register(new TracersModule());
