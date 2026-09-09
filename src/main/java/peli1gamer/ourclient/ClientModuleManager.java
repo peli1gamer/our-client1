@@ -89,6 +89,34 @@ public final class ClientModuleManager {
         for (String id : ids) register(new CatalogModule(id, category));
     }
 
+    /**
+     * Applies a module state through one guarded path so GUI, keybinds and
+     * future integrations do not each need their own failure recovery.
+     */
+    public boolean setEnabled(String id, boolean enabled) {
+        ClientModule module = modules.get(id);
+        if (!(module instanceof ToggleableModule toggleable)) return false;
+        try {
+            toggleable.setEnabled(enabled);
+            return toggleable.enabled() == enabled;
+        } catch (RuntimeException exception) {
+            OurClient.LOGGER.error("Failed to set client module '{}' to {}", id, enabled, exception);
+            if (enabled) {
+                try { toggleable.setEnabled(false); }
+                catch (RuntimeException disableException) {
+                    OurClient.LOGGER.error("Could not roll back failed client module '{}'", id, disableException);
+                }
+            }
+            return false;
+        }
+    }
+
+    public boolean toggle(String id) {
+        ClientModule module = modules.get(id);
+        if (!(module instanceof ToggleableModule toggleable)) return false;
+        return setEnabled(id, !toggleable.enabled());
+    }
+
     public void tick(Minecraft client) {
         if (client == null) return;
         for (Map.Entry<String, ClientModule> entry : List.copyOf(modules.entrySet())) {
