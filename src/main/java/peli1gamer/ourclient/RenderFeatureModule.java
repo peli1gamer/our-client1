@@ -15,6 +15,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,13 +24,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RenderFeatureModule implements ToggleableModule {
     public enum Feature { PLAYER_ESP, MOB_ESP, ITEM_ESP, STORAGE_ESP, VOID_ESP, TRAIL }
     private static final double MAX_RANGE = 96.0D;
+    private static final int STORAGE_RADIUS = 24;
+    private static final int STORAGE_RESULT_LIMIT = 256;
     private static final int TRAIL_LIMIT = 160;
+    private static final int STORAGE_REFRESH_TICKS = 5;
     private static boolean hookInstalled;
     private static final Map<Feature, RenderFeatureModule> INSTANCES = new ConcurrentHashMap<>();
     private final String id;
     private final Feature feature;
     private boolean enabled;
     private final ArrayDeque<Vec3> trail = new ArrayDeque<>();
+    private final List<BlockPos> storageMatches = new ArrayList<>();
+    private int storageRefreshTicks;
 
     public RenderFeatureModule(String id, Feature feature) {
         this.id = id;
@@ -40,14 +47,44 @@ public final class RenderFeatureModule implements ToggleableModule {
     @Override public boolean enabled() { return enabled; }
     @Override public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (!enabled && feature == Feature.TRAIL) trail.clear();
+        if (!enabled) {
+            if (feature == Feature.TRAIL) trail.clear();
+            if (feature == Feature.STORAGE_ESP) storageMatches.clear();
+        }
+        if (enabled && feature == Feature.STORAGE_ESP) storageRefreshTicks = 0;
     }
     @Override public void onClientTick(Minecraft client) {
-        if (feature != Feature.TRAIL || !enabled || client.player == null || client.level == null) return;
-        Vec3 p = client.player.position();
-        if (trail.isEmpty() || trail.peekLast().distanceToSqr(p) >= 0.04D) {
-            trail.addLast(p);
-            while (trail.size() > TRAIL_LIMIT) trail.removeFirst();
+        if (!enabled || client.player == null || client.level == null) {
+            if (feature == Feature.TRAIL) trail.clear();
+            if (feature == Feature.STORAGE_ESP) storageMatches.clear();
+            return;
+        }
+        if (feature == Feature.TRAIL) {
+            Vec3 p = client.player.position();
+            if (trail.isEmpty() || trail.peekLast().distanceToSqr(p) >= 0.04D) {
+                trail.addLast(p);
+                while (trail.size() > TRAIL_LIMIT) trail.removeFirst();
+            }
+        } else if (feature == Feature.STORAGE_ESP) {
+            if (++storageRefreshTicks >= STORAGE_REFRESH_TICKS || storageMatches.isEmpty()) {
+                storageRefreshTicks = 0;
+                refreshStorage(client);
+            }
+        }
+    }
+    private void refreshStorage(Minecraft mc) {
+        storageMatches.clear();
+        BlockPos center = mc.player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(
+                center.offset(-STORAGE_RADIUS, -STORAGE_RADIUS, -STORAGE_RADIUS),
+                center.offset(STORAGE_RADIUS, STORAGE_RADIUS, STORAGE_RADIUS))) {
+            if (storageMatches.size() >= STORAGE_RESULT_LIMIT) break;
+            var state = mc.level.getBlockState(pos);
+            if (state.is(net.minecraft.world.level.block.Blocks.CHEST)
+                    || state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)
+                    || state.is(net.minecraft.world.level.block.Blocks.BARREL)) {
+                storageMatches.add(pos.immutable());
+            }
         }
     }
     private static void installHook() {
@@ -76,7 +113,7 @@ public final class RenderFeatureModule implements ToggleableModule {
             case PLAYER_ESP -> renderPlayers(mc, pose, buffer, camera);
             case MOB_ESP -> renderMobs(mc, pose, buffer, camera);
             case ITEM_ESP -> renderItems(mc, pose, buffer, camera);
-            case STORAGE_ESP -> renderStorage(mc, pose, buffer, camera);
+            case STORAGE_ESP -> renderStorage(pose, buffer, camera);
             case VOID_ESP -> renderVoid(mc, pose, buffer, camera);
             case TRAIL -> renderTrail(pose, buffer, camera);
         }
@@ -99,16 +136,8 @@ public final class RenderFeatureModule implements ToggleableModule {
             emitBox(pose, buffer, item.getBoundingBox().inflate(0.05D), camera);
         }
     }
-    private static void renderStorage(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
-        BlockPos center = mc.player.blockPosition();
-        int radius = 24;
-        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius, -radius), center.offset(radius, radius, radius))) {
-            var state = mc.level.getBlockState(pos);
-            if (!state.is(net.minecraft.world.level.block.Blocks.CHEST)
-                    && !state.is(net.minecraft.world.level.block.Blocks.TRAPPED_CHEST)
-                    && !state.is(net.minecraft.world.level.block.Blocks.BARREL)) continue;
-            emitBox(pose, buffer, new AABB(pos), camera);
-        }
+    private void renderStorage(PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
+        for (BlockPos pos : storageMatches) emitBox(pose, buffer, new AABB(pos), camera);
     }
     private static void renderVoid(Minecraft mc, PoseStack.Pose pose, VertexConsumer buffer, Vec3 camera) {
         int y = mc.level.getMinY();
