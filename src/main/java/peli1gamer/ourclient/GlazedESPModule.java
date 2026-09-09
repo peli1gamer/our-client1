@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ItemEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -114,9 +114,10 @@ public final class GlazedESPModule implements ToggleableModule {
         BlockPos min = center.offset(-BLOCK_SCAN_RADIUS, -BLOCK_SCAN_RADIUS, -BLOCK_SCAN_RADIUS);
         BlockPos max = center.offset(BLOCK_SCAN_RADIUS, BLOCK_SCAN_RADIUS, BLOCK_SCAN_RADIUS);
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            Block block = mc.level.getBlockState(pos).getBlock();
             for (Mode blockMode : BLOCK_CACHE.keySet()) {
                 List<BlockPos> result = BLOCK_CACHE.get(blockMode);
-                if (result.size() < BLOCK_LIMIT && matchesBlock(blockMode, mc.level.getBlockState(pos).getBlock())) {
+                if (result.size() < BLOCK_LIMIT && matchesBlock(blockMode, block)) {
                     result.add(pos.immutable());
                 }
             }
