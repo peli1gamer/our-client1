@@ -171,12 +171,12 @@ public final class GlazedESPModule implements ToggleableModule {
         PoseStack.Pose pose = context.matrices().last();
         Vec3 camera = mc.getCameraEntity().position();
         if (isBlockMode()) {
-            for (BlockPos pos : matches) emitBox(pose, buffer, new AABB(pos), camera);
+            for (BlockPos pos : matches) emitBox(pose, buffer, new AABB(pos));
             return;
         }
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (!entity.isAlive() || entity == mc.player || outOfRange(entity, camera)) continue;
-            if (matchesEntity(entity)) emitBox(pose, buffer, entity.getBoundingBox().inflate(entity instanceof ItemEntity ? 0.05D : 0.02D), camera);
+            if (matchesEntity(entity)) emitBox(pose, buffer, entity.getBoundingBox());
         }
     }
 
@@ -197,9 +197,9 @@ public final class GlazedESPModule implements ToggleableModule {
         return camera.distanceToSqr(entity.position()) > range * range;
     }
 
-    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Vec3 camera) {
-        float minX = (float) (box.minX - camera.x), minY = (float) (box.minY - camera.y), minZ = (float) (box.minZ - camera.z);
-        float maxX = (float) (box.maxX - camera.x), maxY = (float) (box.maxY - camera.y), maxZ = (float) (box.maxZ - camera.z);
+    private static void emitBox(PoseStack.Pose pose, VertexConsumer consumer, AABB box) {
+        float minX = (float) box.minX, minY = (float) box.minY, minZ = (float) box.minZ;
+        float maxX = (float) box.maxX, maxY = (float) box.maxY, maxZ = (float) box.maxZ;
         line(pose, consumer, minX, minY, minZ, maxX, minY, minZ); line(pose, consumer, maxX, minY, minZ, maxX, minY, maxZ);
         line(pose, consumer, maxX, minY, maxZ, minX, minY, maxZ); line(pose, consumer, minX, minY, maxZ, minX, minY, minZ);
         line(pose, consumer, minX, maxY, minZ, maxX, maxY, minZ); line(pose, consumer, maxX, maxY, minZ, maxX, maxY, maxZ);
