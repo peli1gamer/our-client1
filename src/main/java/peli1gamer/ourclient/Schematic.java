@@ -64,8 +64,8 @@ public record Schematic(String name, List<BlockEntry> blocks) {
             String id = requiredString(block, "block");
             if (id.length() > MAX_BLOCK_ID_LENGTH) throw new IllegalArgumentException("Block id is too long");
             Identifier key = Identifier.parse(id);
-            Holder.Reference<Block> registered = BuiltInRegistries.BLOCK.get(key)
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown block: " + id));
+            Holder.Reference<Block> registered = BuiltInRegistries.BLOCK.get(key).orElse(null);
+            if (registered == null) throw new IllegalArgumentException("Unknown block: " + id);
             if (!positions.add(new Position(x, y, z))) {
                 throw new IllegalArgumentException("Duplicate schematic position: " + x + "," + y + "," + z);
             }
