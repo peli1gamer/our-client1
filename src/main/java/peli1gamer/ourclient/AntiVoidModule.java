@@ -3,8 +3,9 @@ package peli1gamer.ourclient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 
-/** Native void protection: detects empty space below the player before the world floor. */
+/** Native void protection: detects empty space below the player's footprint. */
 public final class AntiVoidModule implements ToggleableModule {
     public enum Mode { JUMP, STOP }
     private boolean enabled;
@@ -35,22 +36,30 @@ public final class AntiVoidModule implements ToggleableModule {
 
         var velocity = client.player.getDeltaMovement();
         if (mode == Mode.STOP) {
-            client.player.setDeltaMovement(0.0D, Math.max(0.0D, velocity.y), 0.0D);
+            client.player.setDeltaMovement(0.0D, 0.0D, 0.0D);
         } else {
             client.player.setDeltaMovement(velocity.x, 0.42D, velocity.z);
         }
     }
 
     private boolean voidBelow(Minecraft client) {
-        BlockPos base = client.player.blockPosition();
+        AABB box = client.player.getBoundingBox();
+        int minX = (int) Math.floor(box.minX + 1.0E-4D);
+        int maxX = (int) Math.floor(box.maxX - 1.0E-4D);
+        int minZ = (int) Math.floor(box.minZ + 1.0E-4D);
+        int maxZ = (int) Math.floor(box.maxZ - 1.0E-4D);
+        int baseY = (int) Math.floor(box.minY - 1.0E-4D);
         int minY = client.level.getMinY();
+
         for (int depth = 1; depth <= scanDepth; depth++) {
-            int y = base.getY() - depth;
+            int y = baseY - depth + 1;
             if (y < minY) return true;
-            for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
-                BlockPos pos = base.offset(dx, -depth, dz);
-                BlockState state = client.level.getBlockState(pos);
-                if (!state.isAir() && state.isCollisionShapeFullBlock(client.level, pos)) return false;
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    BlockState state = client.level.getBlockState(pos);
+                    if (!state.isAir() && !state.getCollisionShape(client.level, pos).isEmpty()) return false;
+                }
             }
         }
         return true;
